@@ -1,5 +1,8 @@
 import customtkinter as ctk
 
+from src.gui.components.sidebar import Sidebar
+from src.gui.pages.dashboard import Dashboard
+
 
 class MainWindow(ctk.CTkFrame):
     def __init__(self, parent):
@@ -7,10 +10,12 @@ class MainWindow(ctk.CTkFrame):
 
         self.pack(fill="both", expand=True)
 
-        title = ctk.CTkLabel(
-            self,
-            text="SecureWin Toolkit",
-            font=("Segoe UI", 28, "bold")
-        )
+        self.sidebar = Sidebar(self)
+        self.sidebar.pack(side="left", fill="y")
 
-        title.pack(pady=30)
+        self.dashboard = Dashboard(self)
+        self.dashboard.pack(
+            side="right",
+            fill="both",
+            expand=True
+        )
