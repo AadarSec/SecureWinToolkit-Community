@@ -6,6 +6,21 @@ from src.scanners.tpm import check_tpm
 from src.scanners.smartscreen import check_smartscreen
 from src.scanners.uac import check_uac
 from src.scanners.windows_update import check_windows_update
+from src.scanners.rdp import check_rdp
+from src.scanners.smbv1 import check_smbv1
+from src.scanners.remote_registry import check_remote_registry
+from src.scanners.winrm import check_winrm
+from src.scanners.guest_account import check_guest_account
+from src.scanners.administrator_account import check_administrator_account
+from src.scanners.network_discovery import check_network_discovery
+from src.scanners.file_printer_sharing import check_file_printer_sharing
+from src.scanners.remote_assistance import check_remote_assistance
+from src.scanners.autorun import check_autorun
+from src.scanners.password_policy import check_password_policy
+from src.scanners.print_spooler import check_print_spooler
+from src.scanners.snmp import check_snmp
+from src.scanners.telnet import check_telnet
+from src.scanners.windows_event_log import check_windows_event_log
 
 
 # =====================================================
@@ -64,7 +79,70 @@ SCANNERS = {
         "admin": False,
         "function": check_windows_update
     },
+    "Remote Desktop": {
+        "admin": False,
+        "function": check_rdp
+    },
+    "SMBv1": {
+        "admin": True,
+        "function": check_smbv1
+    },
+    "Remote Registry": {
+        "admin": False,
+        "function": check_remote_registry
+    },
+    "WinRM": {
+        "admin": False,
+        "function": check_winrm
+    },
+    "Network Discovery": {
+         "admin": False,
+        "function": check_network_discovery
+    },
 
+    "File & Printer Sharing": {
+        "admin": False,
+        "function": check_file_printer_sharing
+    },
+
+    "Remote Assistance": {
+        "admin": False,
+        "function": check_remote_assistance
+    },
+
+    "AutoRun / AutoPlay": {
+        "admin": False,
+        "function": check_autorun
+    },
+
+    "Guest Account": {
+        "admin": False,
+        "function": check_guest_account
+    },
+    "Administrator Account": {
+        "admin": False,
+        "function": check_administrator_account
+    },
+    "Password Policy": {
+        "admin": False,
+        "function": check_password_policy
+    },
+    "Print Spooler": {
+        "admin": False,
+        "function": check_print_spooler
+    },
+    "SNMP": {
+        "admin": False,
+        "function": check_snmp
+    },
+    "Telnet": {
+        "admin": False,
+        "function": check_telnet
+    },
+    "Windows Event Log": {
+        "admin": False,
+        "function": check_windows_event_log
+    },
 }
 
 

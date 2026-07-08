@@ -9,6 +9,7 @@ from src.core.audit_cache import AuditCache
 from src.gui.components.details_popup import DetailsPopup
 
 
+
 def is_admin():
 
     try:
@@ -42,7 +43,11 @@ def relaunch_as_admin():
 
 class WindowsAudit(ctk.CTkFrame):
 
-    CHECKS = [
+    # =====================================================
+    # CORE SECURITY
+    # =====================================================
+
+    CORE_SECURITY = [
         ("🛡", "Windows Defender"),
         ("🧱", "Firewall"),
         ("🔒", "BitLocker"),
@@ -52,6 +57,53 @@ class WindowsAudit(ctk.CTkFrame):
         ("👤", "User Account Control"),
         ("🔄", "Windows Update"),
     ]
+
+    # =====================================================
+    # SYSTEM CONFIGURATION
+    # =====================================================
+
+    SYSTEM_CONFIGURATION = [
+        ("🖥", "Remote Desktop"),
+        ("📁", "SMBv1"),
+        ("🛠", "Remote Registry"),
+        ("🌐", "WinRM"),
+        ("🌍", "Network Discovery"),
+        ("🖨", "File & Printer Sharing"),
+        ("🤝", "Remote Assistance"),
+        ("💿", "AutoRun / AutoPlay"),
+    ]
+
+    # =====================================================
+    # ACCOUNT SECURITY
+    # =====================================================
+
+    ACCOUNT_SECURITY = [
+    ("👥", "Guest Account"),
+    ("👑", "Administrator Account"),
+    ("🔑", "Password Policy"),
+    ]
+
+    # =====================================================
+    # Windows Services
+    # =====================================================
+
+    WINDOWS_SERVICES = [
+    ("🖨", "Print Spooler"),
+    ("📡", "SNMP"),
+    ("📞", "Telnet"),
+    ("📋", "Windows Event Log")
+
+]
+    # =====================================================
+    # FINAL CHECKS
+    # =====================================================
+
+    CHECKS = (
+        CORE_SECURITY +
+        SYSTEM_CONFIGURATION +
+        ACCOUNT_SECURITY +
+        WINDOWS_SERVICES
+    )
 
     def __init__(self, parent):
         super().__init__(parent, fg_color="transparent")
@@ -233,7 +285,7 @@ class WindowsAudit(ctk.CTkFrame):
 
         self.total_checks = ctk.CTkLabel(
             right,
-            text="Total Checks : 8",
+            text=f"Total Checks : {len(self.CHECKS)}",
             anchor="w"
         )
 
