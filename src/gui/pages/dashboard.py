@@ -11,6 +11,7 @@ from src.services.monitor_service import (
     get_disk_usage,
     get_disk_activity,
 )
+from src.core.audit_cache import AuditCache
 
 COLUMNS = 4
 APP_VERSION = "SecureWin Toolkit v0.1.0-dev"
@@ -33,6 +34,8 @@ class Dashboard(ctk.CTkFrame):
         self.refresh_interval_ms = REFRESH_INTERVALS_MS[DEFAULT_REFRESH_CHOICE]
         self._refresh_job = None
         self._last_scan_time = None
+        self._last_applied_audit_time = None
+        self._last_security_statuses = ("healthy", "healthy", "healthy", "healthy")
 
         heading = ctk.CTkLabel(
             self,
@@ -493,6 +496,145 @@ class Dashboard(ctk.CTkFrame):
             text=f"{critical_count} Critical | {warning_count} Warnings"
         )
 
+    # ---------------- Security section (live, AuditCache-aware) ----------------
+
+    def _refresh_security_section(self):
+        """
+        Applies the latest known security status to the cards.
+
+        IMPORTANT: this does NOT call get_security_info() on every tick.
+        get_security_info() performs slow, blocking checks (subprocess /
+        registry / WMI calls), and calling it every 2 seconds on the main
+        GUI thread froze the app. Instead:
+
+          - The base snapshot (self._security_snapshot) is only computed
+            once, in build_cards(), at app startup.
+          - On every tick, we do a cheap check: has AuditCache changed
+            since we last looked? If so (and only then), we redraw the
+            Defender/Firewall/BitLocker/Score cards using that fresher,
+            already-computed data — no new subprocess calls involved.
+
+        Returns (defender_status, firewall_status, bitlocker_status, score_status)
+        for use in the overall status badge.
+        """
+
+        # Cheap check: has AuditCache produced new results since we last
+        # applied them? If nothing changed, skip all the redraw work.
+
+        cache_time = AuditCache.get_last_updated()
+
+        if cache_time is not None and cache_time == self._last_applied_audit_time:
+            return self._last_security_statuses
+
+        sec = self._security_snapshot
+
+        defender_status = "healthy" if sec["Defender"] == "Enabled" else "critical"
+        firewall_status = (
+            "healthy" if sec["Firewall"] == "Enabled"
+            else "warning" if sec["Firewall"] == "Partial"
+            else "critical"
+        )
+        bitlocker_status = "healthy" if sec["BitLocker"] == "Protected" else "critical"
+
+        defender_detail = self._defender_detail(sec["Defender"], defender_status)
+        firewall_detail = self._firewall_detail(sec["Firewall"], firewall_status)
+        bitlocker_detail = self._bitlocker_detail(sec["BitLocker"], bitlocker_status)
+
+        defender_value = sec.get("Defender Label", sec["Defender"])
+        firewall_value = sec.get("Firewall Label", sec["Firewall"])
+        bitlocker_value = sec.get("BitLocker Label", sec["BitLocker"])
+
+        score = sec["Security Score"]
+        passed = sec["Passed"]
+        warnings = sec["Warnings"]
+        critical = sec["Critical"]
+
+        # ---- Override with AuditCache results when available ----
+
+        if AuditCache.has_results():
+
+            audit_results = AuditCache.get_results()
+
+            status_map = {"Passed": "healthy", "Warning": "warning", "Critical": "critical"}
+
+            def _audit_detail(result):
+                details = result.get("details", "")
+                recommendation = result.get("recommendation", "")
+                if recommendation:
+                    return f"{details}\n\nRecommendation: {recommendation}"
+                return details
+
+            if "Windows Defender" in audit_results:
+                r = audit_results["Windows Defender"]
+                defender_status = status_map.get(r["status"], "warning")
+                defender_value = r["status"]
+                defender_detail = None if defender_status == "healthy" else _audit_detail(r)
+
+            if "Firewall" in audit_results:
+                r = audit_results["Firewall"]
+                firewall_status = status_map.get(r["status"], "warning")
+                firewall_value = r["status"]
+                firewall_detail = None if firewall_status == "healthy" else _audit_detail(r)
+
+            if "BitLocker" in audit_results:
+                r = audit_results["BitLocker"]
+                bitlocker_status = status_map.get(r["status"], "warning")
+                bitlocker_value = r["status"]
+                bitlocker_detail = None if bitlocker_status == "healthy" else _audit_detail(r)
+
+            total = len(audit_results)
+
+            if total > 0:
+                passed = sum(1 for r in audit_results.values() if r["status"] == "Passed")
+                warnings = sum(1 for r in audit_results.values() if r["status"] == "Warning")
+                critical = sum(1 for r in audit_results.values() if r["status"] == "Critical")
+                score = int((passed / total) * 100)
+
+        score_status = (
+            "healthy" if score >= 85
+            else "warning" if score >= 60
+            else "critical"
+        )
+
+        issues = []
+        if defender_detail:
+            issues.append("Defender")
+        if firewall_detail:
+            issues.append("Firewall")
+        if bitlocker_detail:
+            issues.append("BitLocker")
+        score_detail = self._score_detail(score, issues)
+
+        score_value = (
+            f"{score}/100\n"
+            f"Passed: {passed}  |  Warnings: {warnings}  |  Critical: {critical}"
+        )
+
+        self.cards["🛡 Defender"].update_value(str(defender_value))
+        self.cards["🛡 Defender"].update_status(defender_status)
+        self.cards["🛡 Defender"].update_detail(defender_detail)
+
+        self.cards["🔥 Firewall"].update_value(str(firewall_value))
+        self.cards["🔥 Firewall"].update_status(firewall_status)
+        self.cards["🔥 Firewall"].update_detail(firewall_detail)
+
+        self.cards["🔒 BitLocker"].update_value(str(bitlocker_value))
+        self.cards["🔒 BitLocker"].update_status(bitlocker_status)
+        self.cards["🔒 BitLocker"].update_detail(bitlocker_detail)
+
+        self.cards["⭐ Security Score"].update_value(score_value)
+        self.cards["⭐ Security Score"].update_status(score_status)
+        self.cards["⭐ Security Score"].update_detail(score_detail)
+        self.cards["⭐ Security Score"].set_progress(score)
+
+        self._last_applied_audit_time = cache_time
+
+        self._last_security_statuses = (
+            defender_status, firewall_status, bitlocker_status, score_status
+        )
+
+        return self._last_security_statuses
+
     def update_live(self):
         metrics = {
             "⚙ CPU Usage": ("CPU usage", get_cpu_usage()),
@@ -520,18 +662,8 @@ class Dashboard(ctk.CTkFrame):
             self.cards[name].update_detail(detail)
             self.cards[name].set_progress(value)
 
-        sec = self._security_snapshot
-        defender_status = "healthy" if sec["Defender"] == "Enabled" else "critical"
-        firewall_status = (
-            "healthy" if sec["Firewall"] == "Enabled"
-            else "warning" if sec["Firewall"] == "Partial"
-            else "critical"
-        )
-        bitlocker_status = "healthy" if sec["BitLocker"] == "Protected" else "critical"
-        score_status = (
-            "healthy" if sec["Security Score"] >= 85
-            else "warning" if sec["Security Score"] >= 60
-            else "critical"
+        defender_status, firewall_status, bitlocker_status, score_status = (
+            self._refresh_security_section()
         )
 
         self.update_status_badge_from_all(

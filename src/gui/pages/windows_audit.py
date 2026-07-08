@@ -1,7 +1,44 @@
 import subprocess
+import sys
+import os
+import ctypes
 import customtkinter as ctk
 from tkinter import messagebox
-from src.audit.audit_manager import run_windows_audit
+from src.audit.audit_manager import run_windows_audit, needs_admin, get_admin_required_names
+from src.core.audit_cache import AuditCache
+from src.gui.components.details_popup import DetailsPopup
+
+
+def is_admin():
+
+    try:
+        return ctypes.windll.shell32.IsUserAnAdmin() == 1
+
+    except Exception:
+        return False
+
+
+def relaunch_as_admin():
+
+    try:
+        script = os.path.abspath(sys.argv[0])
+
+        params = " ".join([f'"{arg}"' for arg in sys.argv[1:]])
+
+        ctypes.windll.shell32.ShellExecuteW(
+            None,
+            "runas",
+            sys.executable,
+            f'"{script}" {params}',
+            None,
+            1
+        )
+
+        return True
+
+    except Exception:
+        return False
+
 
 class WindowsAudit(ctk.CTkFrame):
 
@@ -250,6 +287,7 @@ class WindowsAudit(ctk.CTkFrame):
 
         self.results_container.grid_rowconfigure(2, weight=1)
         self.results_container.grid_columnconfigure(0, weight=1)
+        self.results_container.grid_columnconfigure(1, weight=0)
 
         title = ctk.CTkLabel(
             self.results_container,
@@ -265,6 +303,49 @@ class WindowsAudit(ctk.CTkFrame):
             pady=(18, 10)
         )
 
+        selection_bar = ctk.CTkFrame(
+            self.results_container,
+            fg_color="transparent"
+        )
+
+        selection_bar.grid(
+            row=0,
+            column=1,
+            sticky="e",
+            padx=20,
+            pady=(18, 10)
+        )
+
+        select_all_button = ctk.CTkButton(
+            selection_bar,
+            text="☑ Select All",
+            width=110,
+            height=28,
+            fg_color="transparent",
+            hover_color="#333333",
+            border_width=1,
+            border_color="#555555",
+            font=("Segoe UI", 11),
+            command=lambda: self.set_all_checks(True)
+        )
+
+        select_all_button.pack(side="left", padx=(0, 8))
+
+        clear_all_button = ctk.CTkButton(
+            selection_bar,
+            text="☐ Clear All",
+            width=110,
+            height=28,
+            fg_color="transparent",
+            hover_color="#333333",
+            border_width=1,
+            border_color="#555555",
+            font=("Segoe UI", 11),
+            command=lambda: self.set_all_checks(False)
+        )
+
+        clear_all_button.pack(side="left")
+
         header = ctk.CTkFrame(
             self.results_container,
             fg_color="#252525",
@@ -279,7 +360,23 @@ class WindowsAudit(ctk.CTkFrame):
             padx=15
         )
 
-        header.grid_columnconfigure(0, weight=1)
+        header.grid_columnconfigure(1, weight=1)
+
+        self.select_all_var = ctk.BooleanVar(value=True)
+
+        self.select_all_checkbox = ctk.CTkCheckBox(
+            header,
+            text="",
+            variable=self.select_all_var,
+            width=20,
+            command=self.toggle_select_all
+        )
+
+        self.select_all_checkbox.grid(
+            row=0,
+            column=0,
+            padx=(18, 0)
+        )
 
         ctk.CTkLabel(
             header,
@@ -288,7 +385,7 @@ class WindowsAudit(ctk.CTkFrame):
             text_color="#BFBFBF"
         ).grid(
             row=0,
-            column=0,
+            column=1,
             sticky="w",
             padx=18,
             pady=8
@@ -301,7 +398,7 @@ class WindowsAudit(ctk.CTkFrame):
             text_color="#BFBFBF"
         ).grid(
             row=0,
-            column=1,
+            column=2,
             padx=20
         )
 
@@ -312,7 +409,7 @@ class WindowsAudit(ctk.CTkFrame):
             text_color="#BFBFBF"
         ).grid(
             row=0,
-            column=2,
+            column=3,
             padx=20
         )
 
@@ -350,7 +447,22 @@ class WindowsAudit(ctk.CTkFrame):
             pady=4
         )
 
-        row.grid_columnconfigure(0, weight=1)
+        row.grid_columnconfigure(1, weight=1)
+
+        check_var = ctk.BooleanVar(value=True)
+
+        checkbox = ctk.CTkCheckBox(
+            row,
+            text="",
+            variable=check_var,
+            width=20
+        )
+
+        checkbox.grid(
+            row=0,
+            column=0,
+            padx=(16, 0)
+        )
 
         name_label = ctk.CTkLabel(
             row,
@@ -360,7 +472,7 @@ class WindowsAudit(ctk.CTkFrame):
 
         name_label.grid(
             row=0,
-            column=0,
+            column=1,
             padx=16,
             pady=10,
             sticky="w"
@@ -378,7 +490,7 @@ class WindowsAudit(ctk.CTkFrame):
 
         status_badge.grid(
             row=0,
-            column=1,
+            column=2,
             padx=10
         )
 
@@ -396,15 +508,33 @@ class WindowsAudit(ctk.CTkFrame):
 
         details_button.grid(
             row=0,
-            column=2,
+            column=3,
             padx=12
         )
 
         self.audit_rows[name] = {
             "row": row,
+            "checkbox": checkbox,
+            "check_var": check_var,
             "badge": status_badge,
             "button": details_button
         }
+
+    # =====================================================
+    # SELECT ALL TOGGLE
+    # =====================================================
+
+    def toggle_select_all(self):
+
+        self.set_all_checks(self.select_all_var.get())
+
+    def set_all_checks(self, state):
+
+        for name, row_data in self.audit_rows.items():
+            row_data["check_var"].set(state)
+
+        self.select_all_var.set(state)
+
 
     # =====================================================
     # DETAILS
@@ -412,43 +542,18 @@ class WindowsAudit(ctk.CTkFrame):
 
     def show_details(self, check_name):
 
-        if not hasattr(self, "audit_results") or not self.audit_results:
-
-            messagebox.showwarning(
-                "SecureWin Toolkit",
-                "Please run Windows Audit first."
-            )
-
+        if not hasattr(self, "audit_results"):
             return
 
         result = self.audit_results.get(check_name)
 
         if result is None:
-
-            messagebox.showwarning(
-                "SecureWin Toolkit",
-                "No audit information found."
-            )
-
             return
 
-        messagebox.showinfo(
-
+        DetailsPopup(
+            self,
             check_name,
-
-            f"""
-Status : {result.get('status', 'N/A')}
-
-Risk : {result.get('risk', 'N/A')}
-
-Details :
-
-{result.get('details', 'N/A')}
-
-Recommendation :
-
-{result.get('recommendation', 'N/A')}
-"""
+            result
         )
 
     # =====================================================
@@ -457,10 +562,54 @@ Recommendation :
 
     def run_audit(self):
 
-        self.audit_results = {}
-
         if self.is_scanning:
             return
+
+        selected = [
+            name for name, row_data in self.audit_rows.items()
+            if row_data["check_var"].get()
+        ]
+
+        if not selected:
+
+            messagebox.showwarning(
+                "SecureWin Toolkit",
+                "Please select at least one check to run."
+            )
+
+            return
+
+        if needs_admin(selected) and not is_admin():
+
+            admin_names = get_admin_required_names(selected)
+
+            answer = messagebox.askyesnocancel(
+                "Administrator Rights Recommended",
+                f"The following selected check(s) need Administrator rights "
+                f"to return accurate results:\n\n"
+                f"{', '.join(admin_names)}\n\n"
+                "Yes  → Restart SecureWin Toolkit as Administrator\n"
+                "No   → Continue anyway (some results may be inaccurate)\n"
+                "Cancel → Don't run the audit"
+            )
+
+            if answer is None:
+                return
+
+            if answer is True:
+
+                if relaunch_as_admin():
+                    os._exit(0)
+
+                else:
+                    messagebox.showerror(
+                        "SecureWin Toolkit",
+                        "Could not restart as Administrator. Continuing with normal rights."
+                    )
+
+        self.selected_checks = selected
+
+        self.audit_results = {}
 
         self.is_scanning = True
 
@@ -481,7 +630,9 @@ Recommendation :
 
     def finish_scan(self):
 
-        self.audit_results = run_windows_audit()
+        self.audit_results = run_windows_audit(self.selected_checks)
+
+        AuditCache.set_results(self.audit_results)
 
         results = self.audit_results
 
@@ -514,13 +665,17 @@ Recommendation :
                     fg_color=color
                 )
 
-        score = int((passed / len(self.CHECKS)) * 100)
+        score = int((passed / len(self.selected_checks)) * 100)
 
         self.score_label.configure(
             text=f"{score} / 100"
         )
 
         self.progress.set(score / 100)
+
+        self.total_checks.configure(
+            text=f"Total Checks : {len(self.selected_checks)}"
+        )
 
         self.pass_label.configure(
             text=f"🟢 Passed : {passed}"
