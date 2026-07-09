@@ -21,6 +21,7 @@ from src.scanners.print_spooler import check_print_spooler
 from src.scanners.snmp import check_snmp
 from src.scanners.telnet import check_telnet
 from src.scanners.windows_event_log import check_windows_event_log
+from src.scanners.credential_guard import check_credential_guard
 
 
 # =====================================================
@@ -143,15 +144,18 @@ SCANNERS = {
         "admin": False,
         "function": check_windows_event_log
     },
+    "Credential Guard": {
+        "admin": True,
+        "function": check_credential_guard
+    },
 }
-
-
-def run_windows_audit(selected=None):
+def run_windows_audit(selected=None, progress_callback=None):
     """
     Runs the Windows security audit.
 
-    selected : optional list of check names (must match keys in
-               SCANNERS) to run. If None, all checks run.
+    selected : optional list of scanner names.
+
+    progress_callback(current, total, scanner_name, result)
     """
 
     if selected is None:
@@ -159,14 +163,65 @@ def run_windows_audit(selected=None):
 
     results = {}
 
-    for name in selected:
+    total = len(selected)
+
+    for current, name in enumerate(selected, start=1):
 
         scanner = SCANNERS.get(name)
 
         if scanner is None:
             continue
 
-        results[name] = scanner["function"]()
+        result = scanner["function"]()
+
+        results[name] = result
+
+        if progress_callback is not None:
+
+            progress_callback(
+                current=current,
+                total=total,
+                scanner_name=name,
+                result=result
+            )
+
+    return results
+
+def run_windows_audit(selected=None, progress_callback=None):
+    """
+    Runs the Windows security audit.
+
+    selected : optional list of scanner names.
+
+    progress_callback(current, total, scanner_name, result)
+    """
+
+    if selected is None:
+        selected = list(SCANNERS.keys())
+
+    results = {}
+
+    total = len(selected)
+
+    for current, name in enumerate(selected, start=1):
+
+        scanner = SCANNERS.get(name)
+
+        if scanner is None:
+            continue
+
+        result = scanner["function"]()
+
+        results[name] = result
+
+        if progress_callback is not None:
+
+            progress_callback(
+                current=current,
+                total=total,
+                scanner_name=name,
+                result=result
+            )
 
     return results
 

@@ -12,12 +12,23 @@ class Sidebar(ctk.CTkFrame):
 
         self.pack_propagate(False)
 
+        # =====================================================
+        # TITLE
+        # =====================================================
+
         title = ctk.CTkLabel(
             self,
             text="SecureWin Toolkit",
             font=("Segoe UI", 20, "bold")
         )
-        title.pack(pady=(20, 30))
+
+        title.pack(
+            pady=(20, 30)
+        )
+
+        # =====================================================
+        # DASHBOARD
+        # =====================================================
 
         self.dashboard_btn = ctk.CTkButton(
             self,
@@ -27,7 +38,16 @@ class Sidebar(ctk.CTkFrame):
             hover_color="#7A0000",
             command=parent.show_dashboard
         )
-        self.dashboard_btn.pack(fill="x", padx=15, pady=8)
+
+        self.dashboard_btn.pack(
+            fill="x",
+            padx=15,
+            pady=8
+        )
+
+        # =====================================================
+        # WINDOWS AUDIT
+        # =====================================================
 
         self.audit_btn = ctk.CTkButton(
             self,
@@ -37,16 +57,35 @@ class Sidebar(ctk.CTkFrame):
             hover_color="#7A0000",
             command=parent.show_windows_audit
         )
-        self.audit_btn.pack(fill="x", padx=15, pady=8)
+
+        self.audit_btn.pack(
+            fill="x",
+            padx=15,
+            pady=8
+        )
+
+        # =====================================================
+        # NETWORK AUDIT
+        # =====================================================
 
         self.network_btn = ctk.CTkButton(
             self,
             text="🌐 Network Audit",
             height=40,
             fg_color="#5A0000",
-            hover_color="#7A0000"
+            hover_color="#7A0000",
+            command=parent.show_network_audit
         )
-        self.network_btn.pack(fill="x", padx=15, pady=8)
+
+        self.network_btn.pack(
+            fill="x",
+            padx=15,
+            pady=8
+        )
+
+        # =====================================================
+        # REPORTS
+        # =====================================================
 
         self.reports_btn = ctk.CTkButton(
             self,
@@ -55,7 +94,16 @@ class Sidebar(ctk.CTkFrame):
             fg_color="#5A0000",
             hover_color="#7A0000"
         )
-        self.reports_btn.pack(fill="x", padx=15, pady=8)
+
+        self.reports_btn.pack(
+            fill="x",
+            padx=15,
+            pady=8
+        )
+
+        # =====================================================
+        # SETTINGS
+        # =====================================================
 
         self.settings_btn = ctk.CTkButton(
             self,
@@ -64,4 +112,9 @@ class Sidebar(ctk.CTkFrame):
             fg_color="#5A0000",
             hover_color="#7A0000"
         )
-        self.settings_btn.pack(fill="x", padx=15, pady=8)
+
+        self.settings_btn.pack(
+            fill="x",
+            padx=15,
+            pady=8
+        )

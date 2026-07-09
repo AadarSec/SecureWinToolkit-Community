@@ -1,91 +1,77 @@
 import customtkinter as ctk
 
 from src.gui.components.details_popup import DetailsPopup
-from src.gui.components.admin_warning_popup import AdminWarningPopup
 from src.core.audit_cache import AuditCache
-from src.scanners import SCANNER_MAP
-from src.scanners.admin_utils import is_admin
 
 
-class WindowsAudit(ctk.CTkFrame):
+class NetworkAudit(ctk.CTkFrame):
 
     # =====================================================
     # CATEGORIES
     # =====================================================
 
     CATEGORIES = {
-        "User Accounts": {
+        "Network Information": {
             "description":
-                "Evaluates local user accounts and password policies.",
+                "Collects network identity and addressing information.",
             "checks": [
-                ("👑", "Administrator Account"),
-                ("🚫", "Guest Account"),
-                ("🔑", "Password Policy"),
+                ("🌐", "Local IP Address"),
+                ("🌍", "Public IP Address"),
+                ("🖧", "Default Gateway"),
+                ("📡", "DNS Servers"),
+                ("📦", "DHCP Status"),
+                ("🆔", "MAC Address"),
             ]
         },
-        "System Security": {
+        "Network Configuration": {
             "description":
-                "Evaluates built-in security features and protections.",
+                "Reviews adapter configuration and TCP/IP settings.",
             "checks": [
-                ("⚠", "UAC Status"),
-                ("🔐", "BitLocker Status"),
-                ("🥾", "Secure Boot"),
-                ("🔏", "TPM Status"),
-                ("🛡", "Credential Guard"),
-                ("🖼", "SmartScreen"),
-                ("🦠", "Windows Defender"),
+                ("🔌", "Network Adapters"),
+                ("📶", "Adapter Speed"),
+                ("🌍", "IPv6 Status"),
+                ("📏", "MTU"),
+                ("📄", "DHCP Lease"),
             ]
         },
-        "Windows Updates": {
+        "Network Security": {
             "description":
-                "Reviews update status and pending patches.",
+                "Evaluates network security settings and protocols.",
             "checks": [
-                ("🔄", "Windows Update"),
+                ("🛡", "Windows Firewall Profile"),
+                ("📁", "SMB Configuration"),
+                ("📢", "LLMNR"),
+                ("🛰", "NetBIOS"),
+                ("🔒", "Network Isolation"),
             ]
         },
-        "Network & Firewall": {
+        "Wireless Security": {
             "description":
-                "Evaluates network-facing security settings and protocols.",
+                "Reviews wireless adapter configuration and Wi-Fi security.",
             "checks": [
-                ("🧱", "Windows Firewall"),
-                ("🔎", "Network Discovery"),
-                ("📁", "File & Printer Sharing"),
-                ("📦", "SMBv1 Protocol"),
+                ("📶", "SSID"),
+                ("🔐", "Wi-Fi Encryption"),
+                ("📡", "Signal Strength"),
             ]
         },
-        "Remote Access": {
+        "Ports & Services": {
             "description":
-                "Reviews services that allow remote access to this device.",
+                "Inspects listening ports and exposed network services.",
             "checks": [
-                ("🖧", "Remote Desktop (RDP)"),
-                ("🙋", "Remote Assistance"),
-                ("📇", "Remote Registry"),
-                ("💻", "WinRM"),
+                ("🚪", "Listening Ports"),
+                ("⚙", "Running Network Services"),
             ]
         },
-        "Services & Protocols": {
+        "Active Connections": {
             "description":
-                "Inspects legacy services and background protocols that increase attack surface.",
+                "Displays active network sessions and remote endpoints.",
             "checks": [
-                ("🖨", "Print Spooler"),
-                ("📡", "SNMP Service"),
-                ("📟", "Telnet Server"),
-                ("💿", "AutoRun Policy"),
-                ("📜", "Windows Event Log"),
+                ("🔗", "Established Connections"),
+                ("🌍", "Remote Endpoints"),
+                ("💻", "Connection Processes"),
+                ("📊", "TCP Statistics"),
             ]
         }
-    }
-
-    # =====================================================
-    # CHECKS THAT REQUIRE ADMINISTRATOR PRIVILEGES
-    # =====================================================
-    # These checks cannot return fully accurate results unless the
-    # app is running elevated. Checked against the selection BEFORE
-    # the audit starts.
-
-    ADMIN_REQUIRED_CHECKS = {
-        "BitLocker Status",
-        "TPM Status",
     }
 
     # =====================================================
@@ -97,7 +83,7 @@ class WindowsAudit(ctk.CTkFrame):
             parent,
             fg_color="transparent"
         )
-        self.selected_category = "User Accounts"
+        self.selected_category = "Network Information"
         self.audit_rows = {}
         self.audit_results = {}
         self.selected_checks = []
@@ -134,7 +120,7 @@ class WindowsAudit(ctk.CTkFrame):
         self.left_panel.pack_propagate(False)
         title = ctk.CTkLabel(
             self.left_panel,
-            text="🪟  Windows Audit",
+            text="🌐  Network Audit",
             font=("Segoe UI", 22, "bold")
         )
         title.pack(
@@ -609,58 +595,9 @@ class WindowsAudit(ctk.CTkFrame):
     # RUN AUDIT
     # =====================================================
     def run_audit(self):
-        # Prevent a second run from starting while one is already in
-        # progress, or while the admin-privileges popup is open and
-        # waiting on a decision -- this previously allowed two scans
-        # to run at once, garbling the shared progress-percent label
-        # (e.g. showing "128%" from two overlapping updates).
-        if self.is_scanning:
-            return
-
         selected = self.get_selected_checks()
         if not selected:
             return
-
-        self.is_scanning = True
-        self.run_button.configure(
-            text="Running...",
-            state="disabled"
-        )
-
-        # ==========================================
-        # PRE-CHECK: does the selection need admin?
-        # ==========================================
-        admin_needed = [
-            name for name in selected
-            if name in self.ADMIN_REQUIRED_CHECKS
-        ]
-
-        if admin_needed and not is_admin():
-            AdminWarningPopup(
-                self.winfo_toplevel(),
-                admin_needed,
-                on_continue=lambda: self._start_audit(selected),
-                on_cancel=self._reset_run_button
-            )
-            return
-
-        self._start_audit(selected)
-
-    # =====================================================
-    # RESET RUN BUTTON
-    # (used if the admin popup is dismissed without continuing)
-    # =====================================================
-    def _reset_run_button(self):
-        self.is_scanning = False
-        self.run_button.configure(
-            text="🛡 Run Selected",
-            state="normal"
-        )
-
-    # =====================================================
-    # START AUDIT (actual scanning)
-    # =====================================================
-    def _start_audit(self, selected):
         self.is_scanning = True
         self.run_button.configure(
             text="Running...",
@@ -680,30 +617,13 @@ class WindowsAudit(ctk.CTkFrame):
         critical = 0
         for current, scanner in enumerate(selected, start=1):
             # ==========================================
-            # RUN REAL SCANNER
+            # TEMPORARY RESULT
+            # Replace this with real scanner later
             # ==========================================
-            scan_function = SCANNER_MAP.get(scanner)
-            if scan_function is None:
-                result = {
-                    "status": "Warning",
-                    "risk": "Unknown",
-                    "details": f"No scanner is registered for '{scanner}'.",
-                    "recommendation": "Verify this check manually.",
-                    "detection_method": "None",
-                    "confidence": "0%"
-                }
-            else:
-                try:
-                    result = scan_function()
-                except Exception as e:
-                    result = {
-                        "status": "Warning",
-                        "risk": "Unknown",
-                        "details": f"'{scanner}' scan failed unexpectedly: {e}",
-                        "recommendation": "Verify this check manually.",
-                        "detection_method": "None",
-                        "confidence": "0%"
-                    }
+            result = {
+                "status": "Passed",
+                "details": "Scanner not implemented yet."
+            }
             self.audit_results[scanner] = result
             self.audit_progress(
                 current,
