@@ -31,15 +31,19 @@ from .winrm import check_winrm
 # implements it.
 # =====================================================
 
+# NOTE: these keys MUST exactly match the scanner names used in
+# src/core/scanner_metadata.py (SCANNER_METADATA). The GUI (WindowsAudit)
+# builds its category list from that metadata now, so the names here
+# are no longer free-form -- they are looked up directly by name.
 SCANNER_MAP = {
     "Administrator Account": check_administrator_account,
     "Guest Account": check_guest_account,
     "Password Policy": check_password_policy,
 
-    "UAC Status": check_uac,
-    "BitLocker Status": check_bitlocker,
+    "UAC": check_uac,
+    "BitLocker": check_bitlocker,
     "Secure Boot": check_secure_boot,
-    "TPM Status": check_tpm,
+    "TPM": check_tpm,
     "Credential Guard": check_credential_guard,
     "SmartScreen": check_smartscreen,
     "Windows Defender": check_windows_defender,
@@ -49,16 +53,16 @@ SCANNER_MAP = {
     "Windows Firewall": check_firewall,
     "Network Discovery": check_network_discovery,
     "File & Printer Sharing": check_file_printer_sharing,
-    "SMBv1 Protocol": check_smbv1,
+    "SMBv1": check_smbv1,
 
-    "Remote Desktop (RDP)": check_rdp,
+    "Remote Desktop": check_rdp,
     "Remote Assistance": check_remote_assistance,
     "Remote Registry": check_remote_registry,
     "WinRM": check_winrm,
 
     "Print Spooler": check_print_spooler,
-    "SNMP Service": check_snmp,
-    "Telnet Server": check_telnet,
-    "AutoRun Policy": check_autorun,
+    "SNMP": check_snmp,
+    "Telnet": check_telnet,
+    "AutoRun": check_autorun,
     "Windows Event Log": check_windows_event_log,
 }
