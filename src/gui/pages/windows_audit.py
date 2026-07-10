@@ -1,5 +1,5 @@
 import customtkinter as ctk
-
+from src.gui.pages.dashboard import Dashboard
 from src.gui.components.details_popup import DetailsPopup
 from src.gui.components.admin_warning_popup import AdminWarningPopup
 from src.core.audit_cache import AuditCache
@@ -89,7 +89,7 @@ class WindowsAudit(ctk.CTkFrame):
         self.is_scanning = False
         self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(1, weight=1)
-        
+
         self.build_left_panel()
         self.build_right_panel()
 
@@ -111,14 +111,14 @@ class WindowsAudit(ctk.CTkFrame):
             sticky="ns"
         )
         self.left_panel.pack_propagate(False)
-        
+
         title = ctk.CTkLabel(
             self.left_panel,
             text="🪟  Windows Audit",
             font=("Segoe UI", 22, "bold")
         )
         title.pack(anchor="w", padx=20, pady=(25, 10))
-        
+
         subtitle = ctk.CTkLabel(
             self.left_panel,
             text="Categories",
@@ -126,7 +126,7 @@ class WindowsAudit(ctk.CTkFrame):
             text_color="#D0D0D0"
         )
         subtitle.pack(anchor="w", padx=20, pady=(0, 20))
-        
+
         self.category_buttons = {}
         for category, data in self.CATEGORIES.items():
             count = len(data["checks"])
@@ -143,7 +143,7 @@ class WindowsAudit(ctk.CTkFrame):
             )
             btn.pack(fill="x", padx=18, pady=4)
             self.category_buttons[category] = btn
-            
+
         self.category_buttons[self.selected_category].configure(fg_color="#8B0000")
 
     # =====================================================
@@ -208,13 +208,13 @@ class WindowsAudit(ctk.CTkFrame):
         )
         self.score_card.pack(fill="x", pady=(0, 15))
         self.score_card.grid_columnconfigure((0, 1, 2, 3), weight=1)
-        
+
         ctk.CTkLabel(
             self.score_card,
             text="Security Score",
             font=("Segoe UI", 15, "bold")
         ).grid(row=0, column=0, sticky="w", padx=15, pady=(12, 5))
-        
+
         self.score_label = ctk.CTkLabel(
             self.score_card,
             text="0.0 / 100",
@@ -222,7 +222,7 @@ class WindowsAudit(ctk.CTkFrame):
             text_color="#EF4444"
         )
         self.score_label.grid(row=1, column=0, sticky="w", padx=15)
-        
+
         self.score_status = ctk.CTkLabel(
             self.score_card,
             text="Not Scanned",
@@ -230,16 +230,16 @@ class WindowsAudit(ctk.CTkFrame):
             text_color="#9CA3AF"
         )
         self.score_status.grid(row=2, column=0, sticky="w", padx=15, pady=(0, 10))
-        
+
         self.score_progress = ctk.CTkProgressBar(self.score_card, height=12)
         self.score_progress.grid(row=3, column=0, columnspan=4, sticky="ew", padx=15, pady=(0, 15))
         self.score_progress.set(0)
-        
+
         self.passed_label = ctk.CTkLabel(self.score_card, text="Passed : 0")
         self.warning_label = ctk.CTkLabel(self.score_card, text="Warning : 0")
         self.critical_label = ctk.CTkLabel(self.score_card, text="Critical : 0")
         self.remaining_label = ctk.CTkLabel(self.score_card, text="Remaining : 0")
-        
+
         self.passed_label.grid(row=4, column=0, padx=15, pady=(0, 12), sticky="w")
         self.warning_label.grid(row=4, column=1, padx=15, pady=(0, 12), sticky="w")
         self.critical_label.grid(row=4, column=2, padx=15, pady=(0, 12), sticky="w")
@@ -255,13 +255,13 @@ class WindowsAudit(ctk.CTkFrame):
         )
         self.progress_card.pack(fill="x", pady=(0, 15))
         self.progress_card.grid_columnconfigure(1, weight=1)
-        
+
         ctk.CTkLabel(
             self.progress_card,
             text="Audit Progress",
             font=("Segoe UI", 15, "bold")
         ).grid(row=0, column=0, sticky="w", padx=15, pady=(12, 5))
-        
+
         self.progress_percent = ctk.CTkLabel(
             self.progress_card,
             text="0%",
@@ -271,11 +271,11 @@ class WindowsAudit(ctk.CTkFrame):
             text_color="#4EA3FF"
         )
         self.progress_percent.grid(row=0, column=1, sticky="e", padx=15)
-        
+
         self.progress_bar = ctk.CTkProgressBar(self.progress_card, height=12)
         self.progress_bar.grid(row=1, column=0, columnspan=2, sticky="ew", padx=15, pady=(0, 10))
         self.progress_bar.set(0)
-        
+
         self.current_scanner = ctk.CTkLabel(
             self.progress_card,
             text="Current Scanner : Waiting...",
@@ -315,29 +315,25 @@ class WindowsAudit(ctk.CTkFrame):
         self.update()
 
     # =====================================================
-    # REFRESH SECURITY SCORE (100% CATEGORY-SPECIFIC NOW)
+    # REFRESH SECURITY SCORE
     # =====================================================
     def refresh_security_score(self):
-        """
-        Calculates and displays the exact score and statistics for ONLY 
-        the currently selected category.
-        """
-        # 1. Get all check names belonging to the CURRENT category
         category_checks = [
-            scanner for icon, scanner in self.CATEGORIES[self.selected_category]["checks"]
+            scanner
+            for icon, scanner in self.CATEGORIES[self.selected_category]["checks"]
         ]
 
-        # 2. Filter audit_results to include only results from this category
         category_results = {
             scanner: self.audit_results[scanner]
             for scanner in category_checks
             if scanner in self.audit_results
         }
 
-        # 3. Calculate category-specific counts
         passed = 0
         warning = 0
         critical = 0
+        information = 0
+
         for scanner in category_checks:
             if scanner in self.audit_results:
                 status = self.audit_results[scanner].get("status", "")
@@ -345,28 +341,25 @@ class WindowsAudit(ctk.CTkFrame):
                     passed += 1
                 elif status == "Warning":
                     warning += 1
-                else:
+                elif status == "Critical":
                     critical += 1
+                elif status == "Information":
+                    information += 1
 
         scanned_count = len(category_results)
         remaining = len(category_checks) - scanned_count
 
-        # 4. Calculate Score & Posture for this Category
         if scanned_count == 0:
             score_val = 0.0
             posture = "Not Scanned"
             color = "#9CA3AF"
         else:
-            # Pass only category results to score engine to get this category's score
             summary = score_engine.refresh(category_results)
             score_val = summary.get("windows_score", 0.0)
             posture = summary.get("security_posture", "Not Scanned")
             color = summary.get("posture_color", "#9CA3AF")
-            
-            # Immediately restore global score_engine memory with full results for rest of the app
             score_engine.refresh(self.audit_results)
 
-        # 5. Update GUI Elements
         self.score_label.configure(text=f"{score_val:.1f} / 100")
         self.score_progress.set(score_val / 100)
         self.score_status.configure(text=posture, text_color=color)
@@ -384,22 +377,22 @@ class WindowsAudit(ctk.CTkFrame):
         for btn in self.category_buttons.values():
             btn.configure(fg_color="transparent")
         self.category_buttons[category].configure(fg_color="#8B0000")
-        
+
         self.category_title.configure(text=category)
         self.category_description.configure(
             text=self.CATEGORIES[category]["description"]
         )
-        
+
         for widget in self.content_frame.winfo_children():
             if widget not in (self.score_card, self.progress_card):
                 widget.destroy()
-                
+
         self.audit_rows = {}
         self.select_all_var = ctk.BooleanVar(value=False)
-        
+
         select_frame = ctk.CTkFrame(self.content_frame, fg_color="transparent")
         select_frame.pack(fill="x", pady=(0, 10))
-        
+
         select_all = ctk.CTkCheckBox(
             select_frame,
             text="Select Category",
@@ -407,29 +400,28 @@ class WindowsAudit(ctk.CTkFrame):
             command=self.toggle_category
         )
         select_all.pack(side="left")
-        
+
         self.selected_label = ctk.CTkLabel(
             select_frame,
             text="Selected : 0 / 0",
             font=("Segoe UI", 12)
         )
         self.selected_label.pack(side="right")
-        
+
         self.scanner_frame = ctk.CTkScrollableFrame(
             self.content_frame,
             fg_color="transparent"
         )
         self.scanner_frame.pack(fill="both", expand=True)
-        
+
         for icon, scanner in self.CATEGORIES[category]["checks"]:
             self.create_scanner_row(icon, scanner)
-            
-            # Restore status badge if scanner was already scanned earlier
+
             if scanner in self.audit_results:
                 self._update_row_badge(scanner, self.audit_results[scanner])
-                
+
         self.build_bottom_bar()
-        self.refresh_security_score()  # Refresh score specifically for THIS category
+        self.refresh_security_score()
 
     # =====================================================
     # CREATE SCANNER ROW
@@ -443,7 +435,7 @@ class WindowsAudit(ctk.CTkFrame):
         )
         row.pack(fill="x", pady=4)
         row.grid_columnconfigure(1, weight=1)
-        
+
         check_var = ctk.BooleanVar(value=False)
         checkbox = ctk.CTkCheckBox(
             row,
@@ -452,14 +444,14 @@ class WindowsAudit(ctk.CTkFrame):
             width=20
         )
         checkbox.grid(row=0, column=0, padx=(16, 6), pady=10)
-        
+
         title = ctk.CTkLabel(
             row,
             text=f"{icon}  {scanner}",
             font=("Segoe UI", 13, "bold")
         )
         title.grid(row=0, column=1, sticky="w")
-        
+
         badge = ctk.CTkLabel(
             row,
             text="⚫ Not Scanned",
@@ -470,7 +462,7 @@ class WindowsAudit(ctk.CTkFrame):
             font=("Segoe UI", 11)
         )
         badge.grid(row=0, column=2, padx=10)
-        
+
         details = ctk.CTkButton(
             row,
             text=">",
@@ -483,7 +475,7 @@ class WindowsAudit(ctk.CTkFrame):
             command=lambda s=scanner: self.show_details(s)
         )
         details.grid(row=0, column=3, padx=12)
-        
+
         self.audit_rows[scanner] = {
             "check_var": check_var,
             "badge": badge,
@@ -498,13 +490,32 @@ class WindowsAudit(ctk.CTkFrame):
             return
         badge = self.audit_rows[scanner]["badge"]
         status = result.get("status", "Unknown")
-        
+
         if status == "Passed":
-            badge.configure(text="🟢 Passed", fg_color="#16A34A")
+            badge.configure(
+                text="🟢 Passed",
+                fg_color="#16A34A"
+            )
         elif status == "Warning":
-            badge.configure(text="🟡 Warning", fg_color="#D97706")
+            badge.configure(
+                text="🟡 Warning",
+                fg_color="#D97706"
+            )
+        elif status == "Information":
+            badge.configure(
+                text="🔵 Information",
+                fg_color="#2563EB"
+            )
+        elif status == "Not Scanned":
+            badge.configure(
+                text="⚫ Not Scanned",
+                fg_color="#404040"
+            )
         else:
-            badge.configure(text="🔴 Critical", fg_color="#DC2626")
+            badge.configure(
+                text="🔴 Critical",
+                fg_color="#DC2626"
+            )
 
     # =====================================================
     # BOTTOM BAR
@@ -588,7 +599,7 @@ class WindowsAudit(ctk.CTkFrame):
         self.progress_bar.set(0)
         self.set_progress_percent("0%")
         self.set_current_scanner("Preparing audit...")
-        
+
         total = len(selected)
         for current, scanner in enumerate(selected, start=1):
             scan_function = SCANNER_MAP.get(scanner)
@@ -613,11 +624,10 @@ class WindowsAudit(ctk.CTkFrame):
                         "detection_method": "None",
                         "confidence": "0%"
                     }
-            
-            # Save to global dictionary
+
             self.audit_results[scanner] = result
             self.audit_progress(current, total, scanner, result)
-            
+
         self.finish_scan()
 
     # =====================================================
@@ -631,7 +641,6 @@ class WindowsAudit(ctk.CTkFrame):
         self.set_progress_percent(f"{percent}%")
         self.set_current_scanner(f"Scanning : {scanner}")
 
-        # Update badge
         self._update_row_badge(scanner, result)
         self.update_idletasks()
 
@@ -639,17 +648,13 @@ class WindowsAudit(ctk.CTkFrame):
     # FINISH AUDIT
     # =====================================================
     def finish_scan(self):
-        # Refresh category specific score and ensure global state is synced
         self.refresh_security_score()
 
-        # Update progress card UI
         self.progress_bar.set(1)
         self.set_progress_percent("100%")
         self.set_current_scanner("Audit Completed")
 
-        # Reset button state
         self.run_button.configure(text="🛡 Run Selected", state="normal")
         self.is_scanning = False
 
-        # Save all results to cache
-        AuditCache.set_results(self.audit_results)
+        AuditCache.set_windows_results(self.audit_results)

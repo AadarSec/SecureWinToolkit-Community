@@ -847,5 +847,5 @@ class NetworkAudit(ctk.CTkFrame):
         )
         self.is_scanning = False
 
-        AuditCache.set_results(self.audit_results)
+        AuditCache.set_network_results(self.audit_results)
         self.update_idletasks()

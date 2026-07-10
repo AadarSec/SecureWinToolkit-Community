@@ -28,8 +28,14 @@ class MainWindow(ctk.CTkFrame):
             expand=True
         )
 
-        # Pages
-        self.dashboard = Dashboard(self.content)
+        # =====================================================
+        # PAGES
+        # =====================================================
+
+        self.dashboard = Dashboard(
+            self.content,
+            controller=self
+        )
 
         self.audit_page = WindowsAudit(self.content)
 
@@ -48,7 +54,6 @@ class MainWindow(ctk.CTkFrame):
     def show_dashboard(self):
 
         self.audit_page.pack_forget()
-
         self.network_audit.pack_forget()
 
         self.dashboard.pack(
@@ -63,7 +68,6 @@ class MainWindow(ctk.CTkFrame):
     def show_windows_audit(self):
 
         self.dashboard.pack_forget()
-
         self.network_audit.pack_forget()
 
         self.audit_page.pack(
@@ -78,7 +82,6 @@ class MainWindow(ctk.CTkFrame):
     def show_network_audit(self):
 
         self.dashboard.pack_forget()
-
         self.audit_page.pack_forget()
 
         self.network_audit.pack(
