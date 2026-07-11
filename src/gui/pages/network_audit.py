@@ -459,63 +459,65 @@ class NetworkAudit(ctk.CTkFrame):
     # =====================================================
     def refresh_security_score(self):
         """
-        Refresh score card using the score engine.
-        If no scans done yet, force 0/100 and 'Not Scanned'.
+        Refresh score card using scanners that belong ONLY to the
+        currently selected category (not the whole Network Audit
+        module and not the whole app). Remaining is calculated as
+        (checks in this category) - (checks in this category that
+        have already been scanned).
         """
-        # FIX: Agar koi scan na hua ho toh score engine call mat karo
-        if not self.audit_results:
-            total_scanners = sum(
-                len(cat["checks"]) for cat in self.CATEGORIES.values()
-            )
-            
-            self.score_label.configure(text="0 / 100")
-            self.score_progress.set(0)
-            self.score_status.configure(
-                text="Not Scanned",
-                text_color="#9CA3AF"
-            )
-            self.passed_label.configure(text="Passed : 0")
-            self.warning_label.configure(text="Warning : 0")
-            self.critical_label.configure(text="Critical : 0")
-            self.remaining_label.configure(text=f"Remaining : {total_scanners}")
-            
-            self.score_card.update()
-            self.update_idletasks()
-            return
+        category_checks = [
+            scanner
+            for icon, scanner in self.CATEGORIES[self.selected_category]["checks"]
+        ]
 
-        # Jab scans ho chuke hon tab score engine use karo
-        summary = score_engine.refresh(self.audit_results)
-        stats = score_engine.get_statistics()
+        category_results = {
+            scanner: self.audit_results[scanner]
+            for scanner in category_checks
+            if scanner in self.audit_results
+        }
 
-        self.score_label.configure(
-            text=f"{summary['windows_score']:.1f} / 100"
-        )
+        passed = 0
+        warning = 0
+        critical = 0
+        information = 0
 
-        self.score_progress.set(
-            summary["windows_score"] / 100
-        )
+        for scanner in category_checks:
+            if scanner in self.audit_results:
+                status = self.audit_results[scanner].get("status", "")
+                if status == "Passed":
+                    passed += 1
+                elif status == "Warning":
+                    warning += 1
+                elif status == "Critical":
+                    critical += 1
+                elif status == "Information":
+                    information += 1
 
-        self.score_status.configure(
-            text=summary["security_posture"],
-            text_color=summary["posture_color"]
-        )
+        scanned_count = len(category_results)
+        remaining = len(category_checks) - scanned_count
 
-        self.passed_label.configure(
-            text=f"Passed : {stats['passed']}"
-        )
+        if scanned_count == 0:
+            score_val = 0.0
+            posture = "Not Scanned"
+            color = "#9CA3AF"
+        else:
+            summary = score_engine.refresh(category_results)
+            score_val = summary.get("network_score", 0.0)
+            posture = summary.get("security_posture", "Not Scanned")
+            color = summary.get("posture_color", "#9CA3AF")
+            # Restore the engine to the full result set so other
+            # views (e.g. the Dashboard) still see everything.
+            score_engine.refresh(self.audit_results)
 
-        self.warning_label.configure(
-            text=f"Warning : {stats['warning']}"
-        )
+        self.score_label.configure(text=f"{score_val:.1f} / 100")
+        self.score_progress.set(score_val / 100)
+        self.score_status.configure(text=posture, text_color=color)
 
-        self.critical_label.configure(
-            text=f"Critical : {stats['critical']}"
-        )
+        self.passed_label.configure(text=f"Passed : {passed}")
+        self.warning_label.configure(text=f"Warning : {warning}")
+        self.critical_label.configure(text=f"Critical : {critical}")
+        self.remaining_label.configure(text=f"Remaining : {remaining}")
 
-        self.remaining_label.configure(
-            text=f"Remaining : {stats['not_scanned']}"
-        )
-        
         self.score_card.update()
         self.update_idletasks()
 
@@ -658,11 +660,15 @@ class NetworkAudit(ctk.CTkFrame):
             return
             
         badge = self.audit_rows[scanner]["badge"]
-        status = result["status"]
+        status = result.get("status", "Unknown")
         if status == "Passed":
             badge.configure(text="🟢 Passed", fg_color="#16A34A")
         elif status == "Warning":
             badge.configure(text="🟡 Warning", fg_color="#D97706")
+        elif status == "Information":
+            badge.configure(text="🔵 Information", fg_color="#2563EB")
+        elif status == "Not Scanned":
+            badge.configure(text="⚫ Not Scanned", fg_color="#404040")
         else:
             badge.configure(text="🔴 Critical", fg_color="#DC2626")
 
@@ -821,11 +827,15 @@ class NetworkAudit(ctk.CTkFrame):
 
         if scanner in self.audit_rows:
             badge = self.audit_rows[scanner]["badge"]
-            status = result["status"]
+            status = result.get("status", "Unknown")
             if status == "Passed":
                 badge.configure(text="🟢 Passed", fg_color="#16A34A")
             elif status == "Warning":
                 badge.configure(text="🟡 Warning", fg_color="#D97706")
+            elif status == "Information":
+                badge.configure(text="🔵 Information", fg_color="#2563EB")
+            elif status == "Not Scanned":
+                badge.configure(text="⚫ Not Scanned", fg_color="#404040")
             else:
                 badge.configure(text="🔴 Critical", fg_color="#DC2626")
         

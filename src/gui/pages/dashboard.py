@@ -93,10 +93,10 @@ class Dashboard(ctk.CTkFrame):
 
         # --- Bottom panels ---
         self.bottom_left = self.create_panel(height=185)
-        self.bottom_left.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(12, 0))
+        self.bottom_left.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(10, 0))
 
         self.bottom_right = self.create_panel(height=185)
-        self.bottom_right.grid(row=1, column=2, sticky="nsew", padx=(8, 0), pady=(12, 0))
+        self.bottom_right.grid(row=1, column=2, sticky="nsew", padx=(8, 0), pady=(10, 0))
 
         # --- Populate panels ---
         self.build_header_contents()
@@ -132,8 +132,8 @@ class Dashboard(ctk.CTkFrame):
     # =====================================================
 
     def build_header(self):
-        self.header = ctk.CTkFrame(self, fg_color=BG, height=85)
-        self.header.grid(row=0, column=0, sticky="ew", padx=20, pady=(15, 10))
+        self.header = ctk.CTkFrame(self, fg_color=BG, height=70)
+        self.header.grid(row=0, column=0, sticky="ew", padx=20, pady=(12, 8))
         self.header.grid_columnconfigure(0, weight=1)
         self.header.grid_columnconfigure(1, weight=0)
 
@@ -200,7 +200,7 @@ class Dashboard(ctk.CTkFrame):
         ctk.CTkLabel(
             parent, text=text,
             font=("Segoe UI", 18, "bold"), text_color=TEXT
-        ).pack(anchor="w", padx=18, pady=(18, 15))
+        ).pack(anchor="w", padx=18, pady=(14, 10))
 
     # =====================================================
     # REFRESH
@@ -342,36 +342,58 @@ class Dashboard(ctk.CTkFrame):
     # SYSTEM INFORMATION
     # =====================================================
 
+    # Maps each system-info tile title to the key used in the
+    # dict returned by get_system_info(), so the tile can be
+    # refreshed later without rebuilding the whole panel.
+    SYSTEM_FIELD_MAP = [
+        ("🖥", "HOST NAME", "Computer Name"),
+        ("👤", "CURRENT USER", "Current User"),
+        ("🪟", "WINDOWS", "Windows Edition"),
+        ("📦", "VERSION", "Windows Version"),
+        ("🔨", "BUILD", "Windows Build"),
+        ("💻", "PROCESSOR", "Processor"),
+        ("🌐", "IP ADDRESS", "IP Address"),
+        ("⏱", "UPTIME", "Uptime"),
+    ]
+
     def build_system_panel(self):
         self.section_title(self.center_panel, "SYSTEM INFORMATION")
 
         grid = ctk.CTkFrame(self.center_panel, fg_color="transparent")
-        grid.pack(fill="both", expand=True, padx=15, pady=(0, 15))
+        grid.pack(fill="both", expand=True, padx=15, pady=(0, 12))
         grid.grid_columnconfigure(0, weight=1)
         grid.grid_columnconfigure(1, weight=1)
 
         info = self.system
-
-        cards = [
-            ("🖥", "HOST NAME", info.get("Computer Name", "N/A")),
-            ("👤", "CURRENT USER", info.get("Current User", "N/A")),
-            ("🪟", "WINDOWS", info.get("Windows Edition", "N/A")),
-            ("📦", "VERSION", info.get("Windows Version", "N/A")),
-            ("🔨", "BUILD", info.get("Windows Build", "N/A")),
-            ("💻", "PROCESSOR", info.get("Processor", "N/A")),
-            ("🌐", "IP ADDRESS", info.get("IP Address", "N/A")),
-            ("⏱", "UPTIME", info.get("Uptime", "N/A")),
-        ]
+        self.system_info_labels = {}
 
         row = 0
         col = 0
-        for icon, title, value in cards:
+        for icon, title, info_key in self.SYSTEM_FIELD_MAP:
+            value = info.get(info_key, "N/A")
             card = self.create_info_tile(grid, icon, title, value)
-            card.grid(row=row, column=col, padx=6, pady=6, sticky="nsew")
+            card.grid(row=row, column=col, padx=5, pady=4, sticky="nsew")
+            self.system_info_labels[info_key] = card.value_label
             col += 1
             if col == 2:
                 col = 0
                 row += 1
+
+    # =====================================================
+    # SYSTEM INFORMATION REFRESH
+    # =====================================================
+
+    def update_system_info(self):
+        """Re-fetch system info (host name, build, IP, uptime, etc.)
+        and push the fresh values into the already-built tiles, so
+        fields like IP Address / Build stay current on every
+        dashboard refresh instead of being frozen at startup."""
+        self.system = self._get_system_info_safe()
+
+        for icon, title, info_key in self.SYSTEM_FIELD_MAP:
+            label = self.system_info_labels.get(info_key)
+            if label is not None:
+                label.configure(text=self.system.get(info_key, "N/A"))
 
     # =====================================================
     # INFO TILE
@@ -380,33 +402,35 @@ class Dashboard(ctk.CTkFrame):
     def create_info_tile(self, parent, icon, title, value):
         card = ctk.CTkFrame(
             parent, fg_color=CARD, border_width=1,
-            border_color=BORDER, corner_radius=12, width=250, height=118
+            border_color=BORDER, corner_radius=12, width=250, height=100
         )
         card.grid_propagate(False)
 
         header = ctk.CTkFrame(card, fg_color="transparent")
-        header.pack(fill="x", padx=12, pady=(12, 6))
+        header.pack(fill="x", padx=12, pady=(10, 4))
 
         icon_frame = ctk.CTkFrame(
-            header, width=36, height=36,
+            header, width=32, height=32,
             fg_color=ACCENT, corner_radius=8
         )
         icon_frame.pack(side="left")
         icon_frame.pack_propagate(False)
 
-        ctk.CTkLabel(icon_frame, text=icon, font=("Segoe UI", 16)).pack(expand=True)
+        ctk.CTkLabel(icon_frame, text=icon, font=("Segoe UI", 14)).pack(expand=True)
 
         ctk.CTkLabel(
             header, text=title,
             font=("Segoe UI", 11, "bold"), text_color=MUTED
         ).pack(side="left", padx=10)
 
-        ctk.CTkLabel(
+        value_label = ctk.CTkLabel(
             card, text=value,
             justify="left", anchor="w", wraplength=205,
             font=("Segoe UI", 13)
-        ).pack(anchor="w", padx=15, pady=(4, 0))
+        )
+        value_label.pack(anchor="w", padx=15, pady=(2, 0))
 
+        card.value_label = value_label
         return card
 
     # =====================================================
@@ -705,6 +729,7 @@ class Dashboard(ctk.CTkFrame):
 
     def update_dashboard(self):
         try:
+            self.update_system_info()
             self.update_performance_cards()
             data = self.collect_dashboard_data()
             self.update_dashboard_ui(data)

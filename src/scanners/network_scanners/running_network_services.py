@@ -125,7 +125,7 @@ $results | ConvertTo-Json
         # Purely informational — no pass/fail/critical judgement is made.
         # -------------------------------------------------------------
 
-        status = "Informational"
+        status = "Information"
         risk = "Informational"
 
         recommendation = (
