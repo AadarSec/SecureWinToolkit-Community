@@ -92,7 +92,8 @@ class Sidebar(ctk.CTkFrame):
             text="📄 Reports",
             height=40,
             fg_color="#5A0000",
-            hover_color="#7A0000"
+            hover_color="#7A0000",
+            command=parent.show_reports
         )
 
         self.reports_btn.pack(
