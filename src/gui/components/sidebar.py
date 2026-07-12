@@ -111,7 +111,8 @@ class Sidebar(ctk.CTkFrame):
             text="⚙ Settings",
             height=40,
             fg_color="#5A0000",
-            hover_color="#7A0000"
+            hover_color="#7A0000",
+            command=parent.show_settings
         )
 
         self.settings_btn.pack(

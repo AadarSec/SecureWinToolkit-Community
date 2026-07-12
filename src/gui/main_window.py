@@ -5,6 +5,7 @@ from src.gui.pages.dashboard import Dashboard
 from src.gui.pages.windows_audit import WindowsAudit
 from src.gui.pages.network_audit import NetworkAudit
 from src.gui.pages.reports_page import ReportsPage
+from src.gui.pages.settings_page import SettingsPage
 
 
 class MainWindow(ctk.CTkFrame):
@@ -44,6 +45,8 @@ class MainWindow(ctk.CTkFrame):
 
         self.reports_page = ReportsPage(self.content)
 
+        self.settings_page = SettingsPage(self.content)
+
         # Default Page
         self.dashboard.pack(
             fill="both",
@@ -59,6 +62,7 @@ class MainWindow(ctk.CTkFrame):
         self.audit_page.pack_forget()
         self.network_audit.pack_forget()
         self.reports_page.pack_forget()
+        self.settings_page.pack_forget()
 
         self.dashboard.pack(
             fill="both",
@@ -74,6 +78,7 @@ class MainWindow(ctk.CTkFrame):
         self.dashboard.pack_forget()
         self.network_audit.pack_forget()
         self.reports_page.pack_forget()
+        self.settings_page.pack_forget()
 
         self.audit_page.pack(
             fill="both",
@@ -89,6 +94,7 @@ class MainWindow(ctk.CTkFrame):
         self.dashboard.pack_forget()
         self.audit_page.pack_forget()
         self.reports_page.pack_forget()
+        self.settings_page.pack_forget()
 
         self.network_audit.pack(
             fill="both",
@@ -104,8 +110,27 @@ class MainWindow(ctk.CTkFrame):
         self.dashboard.pack_forget()
         self.audit_page.pack_forget()
         self.network_audit.pack_forget()
+        self.settings_page.pack_forget()
+
+        self.reports_page.apply_settings_defaults()
 
         self.reports_page.pack(
+            fill="both",
+            expand=True
+        )
+
+    # =====================================================
+    # SETTINGS
+    # =====================================================
+
+    def show_settings(self):
+
+        self.dashboard.pack_forget()
+        self.audit_page.pack_forget()
+        self.network_audit.pack_forget()
+        self.reports_page.pack_forget()
+
+        self.settings_page.pack(
             fill="both",
             expand=True
         )

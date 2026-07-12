@@ -7,6 +7,7 @@ from tkinter import messagebox
 
 from src.services import report_generator
 from src.services import scheduler_service
+from src.services import settings_service
 
 
 def os_open_folder(path):
@@ -95,12 +96,14 @@ class ReportsPage(ctk.CTkFrame):
     def __init__(self, master, **kwargs):
         super().__init__(master, fg_color=BG_MAIN, **kwargs)
 
-        self.selected_audit_type = ctk.StringVar(value="windows")
-        self.selected_format = ctk.StringVar(value="PDF")
+        prefs = settings_service.load_settings()
 
-        self.opt_include_passed = ctk.BooleanVar(value=True)
-        self.opt_include_recommendations = ctk.BooleanVar(value=True)
-        self.opt_include_system_info = ctk.BooleanVar(value=True)
+        self.selected_audit_type = ctk.StringVar(value=prefs["default_audit_type"])
+        self.selected_format = ctk.StringVar(value=prefs["default_report_format"])
+
+        self.opt_include_passed = ctk.BooleanVar(value=prefs["include_passed_by_default"])
+        self.opt_include_recommendations = ctk.BooleanVar(value=prefs["include_recommendations_by_default"])
+        self.opt_include_system_info = ctk.BooleanVar(value=prefs["include_system_info_by_default"])
         self.opt_executive_summary_only = ctk.BooleanVar(value=False)
 
         self._audit_type_frames = {}
@@ -121,7 +124,8 @@ class ReportsPage(ctk.CTkFrame):
         # Background scheduler: idempotent, safe even if this page gets
         # rebuilt (e.g. user navigates away and back).
         scheduler_service.on_auto_run = self._on_schedule_auto_run
-        scheduler_service.start_scheduler()
+        if prefs["scheduler_enabled"]:
+            scheduler_service.start_scheduler(poll_seconds=prefs["scheduler_poll_seconds"])
         self.refresh_scheduled_reports(scheduler_service.load_schedules())
 
     # ------------------------------------------------------------------ #
@@ -735,6 +739,12 @@ class ReportsPage(ctk.CTkFrame):
         self.refresh_stats()
         self.refresh_recent_reports(report_generator.load_report_index()[:6])
 
+        if settings_service.get("auto_open_report_after_generate"):
+            try:
+                report_generator.open_report(entry["id"])
+            except Exception:
+                pass
+
         messagebox.showinfo(
             "Report Generated",
             f"{entry['name']} ({entry['type']}) saved successfully.\n\n{entry['filepath']}"
@@ -760,6 +770,34 @@ class ReportsPage(ctk.CTkFrame):
             report_generator.open_report(report_id)
         except FileNotFoundError as e:
             messagebox.showerror("File Not Found", str(e))
+
+    def apply_settings_defaults(self):
+        """
+        Re-reads Settings and re-applies the default audit type / format /
+        option checkboxes. ReportsPage is only constructed once at app
+        startup, so without this, a Settings change made mid-session would
+        never be reflected here -- call this every time the Reports tab
+        is shown (see MainWindow.show_reports).
+        """
+
+        prefs = settings_service.load_settings()
+
+        self.selected_audit_type.set(prefs["default_audit_type"])
+        self.selected_format.set(prefs["default_report_format"])
+        self._refresh_audit_type_selection()
+        self._refresh_format_selection()
+
+        self.opt_include_passed.set(prefs["include_passed_by_default"])
+        self.opt_include_recommendations.set(prefs["include_recommendations_by_default"])
+        self.opt_include_system_info.set(prefs["include_system_info_by_default"])
+
+        # Data on disk can change from elsewhere in the app (e.g. "Clear
+        # Report History" on the Settings page), and ReportsPage isn't
+        # rebuilt when that happens -- so re-sync from disk every time
+        # this tab is shown, not just at app startup.
+        self.refresh_stats()
+        self.refresh_recent_reports(report_generator.load_report_index()[:6])
+        self.refresh_scheduled_reports(scheduler_service.load_schedules())
 
     def refresh_stats(self):
         """Recomputes the 4 top stat cards from the real report index."""
