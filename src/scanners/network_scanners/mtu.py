@@ -8,7 +8,7 @@ Scanner:
 
 from __future__ import annotations
 
-from .helpers import get_active_network_info
+from .helpers import build_error_result, get_active_network_info
 
 
 def run_scan():
@@ -20,34 +20,22 @@ def run_scan():
 
     if info is None:
 
-        return {
-            "status": "Warning",
-            "risk": "Low",
-            "details": "Unable to retrieve MTU information.",
-            "recommendation": (
-                "Verify that the active network adapter is available."
-            ),
-            "detection_method": "PowerShell Get-NetIPInterface",
-            "confidence": "Low",
-            "data": {}
-        }
+        return build_error_result(
+            "Unable to retrieve MTU information.",
+            "Verify that the active network adapter is available.",
+            "PowerShell Get-NetIPInterface",
+        )
 
     interface = info.get("InterfaceAlias", "Unknown")
     mtu = info.get("MTU")
 
     if mtu is None:
 
-        return {
-            "status": "Warning",
-            "risk": "Low",
-            "details": "Unable to determine MTU.",
-            "recommendation": (
-                "Verify network adapter configuration."
-            ),
-            "detection_method": "PowerShell Get-NetIPInterface",
-            "confidence": "Low",
-            "data": {}
-        }
+        return build_error_result(
+            "Unable to determine MTU.",
+            "Verify network adapter configuration.",
+            "PowerShell Get-NetIPInterface",
+        )
 
     if mtu == 1500:
 

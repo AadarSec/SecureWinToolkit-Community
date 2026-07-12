@@ -1,23 +1,17 @@
-import subprocess
+from .powershell_utils import run_ps
 
 
 def check_file_printer_sharing():
 
     try:
 
-        result = subprocess.run(
-            [
-                "powershell",
-                "-NoProfile",
-                "-Command",
-                "(Get-NetFirewallRule -DisplayGroup 'File and Printer Sharing' | Where-Object {$_.Enabled -eq 'True'}).Count"
-            ],
-            capture_output=True,
-            text=True,
-            timeout=20
+        result = run_ps(
+            "(Get-NetFirewallRule -DisplayGroup 'File and Printer Sharing' | "
+            "Where-Object {$_.Enabled -eq 'True'}).Count",
+            timeout=20,
         )
 
-        count = result.stdout.strip()
+        count = result.stdout
 
         if count.isdigit():
 

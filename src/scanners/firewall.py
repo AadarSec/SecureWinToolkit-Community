@@ -1,28 +1,25 @@
-import subprocess
+"""
+Windows Firewall profile check.
+
+Now uses the shared run_ps() helper (see powershell_utils.py) instead of
+a hand-rolled subprocess.run() call: same behavior, but the child process
+no longer flashes a console window and spawns slightly faster.
+"""
+
+from .powershell_utils import run_ps
 
 
 def check_firewall():
 
     try:
+        result = run_ps("Get-NetFirewallProfile | Select-Object Name,Enabled")
 
-        result = subprocess.run(
-            [
-                "powershell",
-                "-NoProfile",
-                "-Command",
-                "Get-NetFirewallProfile | Select-Object Name,Enabled"
-            ],
-            capture_output=True,
-            text=True,
-            timeout=15
-        )
+        if not result.ok:
+            raise RuntimeError(result.stderr or "Get-NetFirewallProfile failed")
 
-        output = result.stdout
-
-        enabled_profiles = output.count("True")
+        enabled_profiles = result.stdout.count("True")
 
         if enabled_profiles == 3:
-
             return {
                 "status": "Passed",
                 "risk": "Low",
@@ -31,7 +28,6 @@ def check_firewall():
             }
 
         elif enabled_profiles > 0:
-
             return {
                 "status": "Warning",
                 "risk": "Medium",
@@ -40,7 +36,6 @@ def check_firewall():
             }
 
         else:
-
             return {
                 "status": "Critical",
                 "risk": "High",
@@ -49,7 +44,6 @@ def check_firewall():
             }
 
     except Exception:
-
         return {
             "status": "Warning",
             "risk": "Unknown",

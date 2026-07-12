@@ -8,8 +8,7 @@ Scanner:
 
 from __future__ import annotations
 
-import subprocess
-import re
+from .helpers import build_error_result, get_netstat_connections
 
 
 # ---------------------------------------------------------------------------
@@ -101,48 +100,26 @@ def run_scan():
         # COLLECTION
         # -------------------------------------------------------------
 
-        result = subprocess.run(
-            [
-                "netstat",
-                "-ano"
-            ],
-            capture_output=True,
-            text=True,
-            timeout=15
-        )
+        connections = get_netstat_connections()
 
-        output = result.stdout
+        ports = set()
+        port_addresses: dict = {}
 
-        ports = []
-        port_addresses = {}
+        for conn in connections:
 
-        for line in output.splitlines():
-
-            line = line.strip()
-
-            if not line.startswith("TCP"):
+            if conn["state"] != "LISTENING":
                 continue
-
-            if "LISTENING" not in line:
-                continue
-
-            parts = re.split(r"\s+", line)
-
-            if len(parts) < 5:
-                continue
-
-            local = parts[1]
 
             try:
-                address, port_str = local.rsplit(":", 1)
+                address, port_str = conn["local"].rsplit(":", 1)
                 port = int(port_str)
             except Exception:
                 continue
 
-            ports.append(port)
+            ports.add(port)
             port_addresses.setdefault(port, set()).add(address)
 
-        ports = sorted(set(ports))
+        ports = sorted(ports)
 
         # -------------------------------------------------------------
         # ANALYSIS
@@ -312,28 +289,12 @@ def run_scan():
 
     except Exception as e:
 
-        return {
-
-            "status": "Warning",
-
-            "risk": "Low",
-
-            "details": str(e),
-
-            "recommendation": (
-                "Unable to enumerate listening TCP ports."
-            ),
-
-            "detection_method": "netstat -ano",
-
-            "confidence": "Low",
-
-            "possible_attack": [],
-
-            "mitre": [],
-
-            "compliance": {},
-
-            "data": {}
-
-        }
+        result = build_error_result(
+            e,
+            "Unable to enumerate listening TCP ports.",
+            "netstat -ano",
+        )
+        result["possible_attack"] = []
+        result["mitre"] = []
+        result["compliance"] = {}
+        return result

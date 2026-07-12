@@ -8,8 +8,7 @@ Scanner:
 
 from __future__ import annotations
 
-import json
-import subprocess
+from .helpers import build_error_result, run_powershell
 
 
 def run_scan():
@@ -48,24 +47,7 @@ $result | ConvertTo-Json
 
     try:
 
-        process = subprocess.run(
-            [
-                "powershell",
-                "-NoProfile",
-                "-ExecutionPolicy",
-                "Bypass",
-                "-Command",
-                powershell
-            ],
-            capture_output=True,
-            text=True,
-            timeout=10
-        )
-
-        if process.returncode != 0:
-            raise RuntimeError(process.stderr)
-
-        result = json.loads(process.stdout)
+        result = run_powershell(powershell)
 
         adapter = result.get("Description", "Unknown")
         status_value = result.get("NetBIOS", "Unknown")
@@ -119,14 +101,8 @@ $result | ConvertTo-Json
 
     except Exception as e:
 
-        return {
-            "status": "Warning",
-            "risk": "Low",
-            "details": str(e),
-            "recommendation": (
-                "Unable to determine NetBIOS configuration."
-            ),
-            "detection_method": "WMI",
-            "confidence": "Low",
-            "data": {}
-        }
+        return build_error_result(
+            e,
+            "Unable to determine NetBIOS configuration.",
+            "WMI",
+        )

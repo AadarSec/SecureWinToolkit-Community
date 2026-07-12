@@ -8,7 +8,7 @@ Scanner:
 
 from __future__ import annotations
 
-from .helpers import get_active_network_info
+from .helpers import build_error_result, get_active_network_info
 
 
 def run_scan():
@@ -19,17 +19,11 @@ def run_scan():
     info = get_active_network_info()
 
     if info is None:
-        return {
-            "status": "Warning",
-            "risk": "Low",
-            "details": "Unable to retrieve active network information.",
-            "recommendation": (
-                "Verify that an active network adapter is connected."
-            ),
-            "detection_method": "PowerShell Get-NetIPConfiguration",
-            "confidence": "Low",
-            "data": {}
-        }
+        return build_error_result(
+            "Unable to retrieve active network information.",
+            "Verify that an active network adapter is connected.",
+            "PowerShell Get-NetIPConfiguration",
+        )
 
     dns_servers = info.get("DNSServers")
 
@@ -49,15 +43,14 @@ def run_scan():
     if isinstance(dns_servers, str):
         dns_servers = [dns_servers]
 
-    details = "Configured DNS Servers:\n\n"
-
-    for dns in dns_servers:
-        details += f"• {dns}\n"
+    details = "Configured DNS Servers:\n\n" + "\n".join(
+        f"• {dns}" for dns in dns_servers
+    )
 
     return {
         "status": "Passed",
         "risk": "Informational",
-        "details": details.strip(),
+        "details": details,
         "recommendation": (
             "Verify these DNS servers belong to your trusted network."
         ),

@@ -8,108 +8,40 @@ Scanner:
 
 from __future__ import annotations
 
-import subprocess
-from collections import defaultdict
+from collections import Counter
 
-
-def get_process_name(pid):
-
-    try:
-
-        result = subprocess.run(
-
-            [
-                "tasklist",
-                "/FI",
-                f"PID eq {pid}",
-                "/FO",
-                "CSV",
-                "/NH"
-            ],
-
-            capture_output=True,
-
-            text=True,
-
-            timeout=10
-
-        )
-
-        line = result.stdout.strip()
-
-        if not line:
-            return "Unknown"
-
-        if "INFO:" in line:
-            return "Unknown"
-
-        return line.split(",")[0].replace('"', "")
-
-    except Exception:
-
-        return "Unknown"
+from .helpers import (
+    build_error_result,
+    get_netstat_connections,
+    get_process_name_map,
+)
 
 
 def run_scan():
 
     try:
 
-        result = subprocess.run(
+        connections = get_netstat_connections()
+        process_map = get_process_name_map()
 
-            ["netstat", "-ano"],
+        established_pids = [
+            conn["pid"]
+            for conn in connections
+            if conn["state"] == "ESTABLISHED"
+        ]
 
-            capture_output=True,
+        connection_counts = Counter(established_pids)
 
-            text=True,
-
-            timeout=15
-
-        )
-
-        process_connections = defaultdict(int)
-
-        for line in result.stdout.splitlines():
-
-            line = line.strip()
-
-            if not line.startswith("TCP"):
-                continue
-
-            parts = line.split()
-
-            if len(parts) < 5:
-                continue
-
-            if parts[3] != "ESTABLISHED":
-                continue
-
-            pid = parts[4]
-
-            process_connections[pid] += 1
-
-        processes = []
-
-        for pid, connection_count in process_connections.items():
-
-            process_name = get_process_name(pid)
-
-            processes.append({
-
+        processes = [
+            {
                 "pid": pid,
+                "process": process_map.get(pid, "Unknown"),
+                "connections": count,
+            }
+            for pid, count in connection_counts.items()
+        ]
 
-                "process": process_name,
-
-                "connections": connection_count
-
-            })
-
-        processes.sort(
-
-            key=lambda x: x["connections"],
-
-            reverse=True
-
-        )
+        processes.sort(key=lambda x: x["connections"], reverse=True)
 
         total_processes = len(processes)
 
@@ -168,22 +100,8 @@ def run_scan():
 
     except Exception as e:
 
-        return {
-
-            "status": "Warning",
-
-            "risk": "Low",
-
-            "details": str(e),
-
-            "recommendation": (
-                "Unable to enumerate processes with active network connections."
-            ),
-
-            "detection_method": "netstat -ano + tasklist",
-
-            "confidence": "Low",
-
-            "data": {}
-
-        }
+        return build_error_result(
+            e,
+            "Unable to enumerate processes with active network connections.",
+            "netstat -ano + tasklist",
+        )

@@ -8,55 +8,24 @@ Scanner:
 
 from __future__ import annotations
 
-import subprocess
-import re
+from .helpers import build_error_result, get_netstat_connections
 
 
 def run_scan():
 
     try:
 
-        result = subprocess.run(
-            [
-                "netstat",
-                "-ano"
-            ],
-            capture_output=True,
-            text=True,
-            timeout=15
-        )
+        all_connections = get_netstat_connections()
 
-        output = result.stdout
-
-        connections = []
-
-        for line in output.splitlines():
-
-            line = line.strip()
-
-            if not line.startswith("TCP"):
-                continue
-
-            if "ESTABLISHED" not in line:
-                continue
-
-            parts = re.split(r"\s+", line)
-
-            if len(parts) < 5:
-                continue
-
-            local = parts[1]
-            remote = parts[2]
-            state = parts[3]
-            pid = parts[4]
-
-            connections.append(
-                {
-                    "local": local,
-                    "remote": remote,
-                    "pid": pid
-                }
-            )
+        connections = [
+            {
+                "local": conn["local"],
+                "remote": conn["remote"],
+                "pid": conn["pid"],
+            }
+            for conn in all_connections
+            if conn["state"] == "ESTABLISHED"
+        ]
 
         total = len(connections)
 
@@ -127,22 +96,8 @@ def run_scan():
 
     except Exception as e:
 
-        return {
-
-            "status": "Warning",
-
-            "risk": "Low",
-
-            "details": str(e),
-
-            "recommendation": (
-                "Unable to enumerate established TCP connections."
-            ),
-
-            "detection_method": "netstat -ano",
-
-            "confidence": "Low",
-
-            "data": {}
-
-        }
+        return build_error_result(
+            e,
+            "Unable to enumerate established TCP connections.",
+            "netstat -ano",
+        )

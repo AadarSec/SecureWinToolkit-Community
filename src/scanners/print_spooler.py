@@ -1,118 +1,66 @@
-import json
-import subprocess
+"""
+Print Spooler service check.
+
+BEFORE: spawned PowerShell (`Get-Service -Name Spooler | ... | ConvertTo-Json`)
+just to read status + start type, then manually decoded PowerShell's numeric
+service-status enum values.
+
+AFTER: reads the same information via `psutil.win_service_get()` -- no
+subprocess, and psutil already returns human-readable strings so the old
+enum-decoding ("4" -> "Running", "2" -> "Automatic", etc.) is unnecessary.
+"""
+
+from .service_utils import get_service_info
 
 
 def check_print_spooler():
 
     try:
+        info = get_service_info("Spooler")
 
-        result = subprocess.run(
-            [
-                "powershell",
-                "-NoProfile",
-                "-ExecutionPolicy",
-                "Bypass",
-                "-Command",
-                """
-                Get-Service -Name Spooler |
-                Select-Object Status,StartType |
-                ConvertTo-Json -Compress
-                """
-            ],
-            capture_output=True,
-            text=True,
-            timeout=20
-        )
+        if info.error:
+            raise RuntimeError(info.error)
 
-        if result.returncode != 0:
+        service_status = info.status.title() if info.status else "Unknown"
+        startup_type = info.start_type.title() if info.start_type else "Unknown"
 
+        if info.status == "running":
             return {
-                "status": "Warning",
-                "risk": "Unknown",
-                "details": result.stderr.strip(),
-                "recommendation": "Verify the Print Spooler service manually.",
-                "detection_method": "PowerShell Get-Service",
-                "confidence": "0%"
-            }
-
-        data = json.loads(result.stdout)
-
-        service_status = str(data.get("Status", "Unknown"))
-        startup_type = str(data.get("StartType", "Unknown"))
-
-        # PowerShell sometimes returns enum values instead of text
-        if service_status == "4":
-            service_status = "Running"
-        elif service_status == "1":
-            service_status = "Stopped"
-
-        if startup_type == "2":
-            startup_type = "Automatic"
-        elif startup_type == "3":
-            startup_type = "Manual"
-        elif startup_type == "4":
-            startup_type = "Disabled"
-
-        if service_status.lower() == "running":
-
-            return {
-
                 "status": "Warning",
                 "risk": "Medium",
-
                 "details":
-
                     "Print Spooler service is currently running.\n\n"
-
                     "Service Information\n"
                     "-------------------------\n"
-
                     f"Status       : {service_status}\n"
                     f"Startup Type : {startup_type}",
-
                 "recommendation":
-
-                    "If this computer does not require printing, disable the Print Spooler service to reduce the attack surface.",
-
-                "detection_method": "PowerShell Get-Service",
+                    "If this computer does not require printing, disable the Print Spooler "
+                    "service to reduce the attack surface.",
+                "detection_method": "Windows Service",
                 "confidence": "100%"
             }
 
         return {
-
             "status": "Passed",
             "risk": "Low",
-
             "details":
-
                 "Print Spooler service is not running.\n\n"
-
                 "Service Information\n"
                 "-------------------------\n"
-
                 f"Status       : {service_status}\n"
                 f"Startup Type : {startup_type}",
-
-            "recommendation":
-                "No action required.",
-
-            "detection_method": "PowerShell Get-Service",
+            "recommendation": "No action required.",
+            "detection_method": "Windows Service",
             "confidence": "100%"
         }
 
     except Exception as e:
-
         return {
-
             "status": "Warning",
             "risk": "Unknown",
-
-            "details":
-                f"Print Spooler check failed:\n\n{e}",
-
-            "recommendation":
-                "Verify the Print Spooler service manually.",
-
-            "detection_method": "PowerShell Get-Service",
+            "details": f"Print Spooler check failed:\n\n{e}",
+            "recommendation": "Verify the Print Spooler service manually.",
+            "detection_method": "Windows Service",
             "confidence": "0%"
         }

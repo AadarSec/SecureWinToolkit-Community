@@ -8,7 +8,7 @@ Scanner:
 
 from __future__ import annotations
 
-from .helpers import get_active_network_info
+from .helpers import build_error_result, get_active_network_info
 
 
 def run_scan():
@@ -20,17 +20,11 @@ def run_scan():
 
     if info is None:
 
-        return {
-            "status": "Warning",
-            "risk": "Low",
-            "details": "Unable to retrieve active network adapter.",
-            "recommendation": (
-                "Verify that a network adapter is connected and enabled."
-            ),
-            "detection_method": "PowerShell Get-NetIPConfiguration",
-            "confidence": "Low",
-            "data": {}
-        }
+        return build_error_result(
+            "Unable to retrieve active network adapter.",
+            "Verify that a network adapter is connected and enabled.",
+            "PowerShell Get-NetIPConfiguration",
+        )
 
     interface = info.get("InterfaceAlias", "Unknown")
     description = info.get("InterfaceDescription", "Unknown")

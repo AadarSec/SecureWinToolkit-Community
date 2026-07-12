@@ -8,83 +8,31 @@ Scanner:
 
 from __future__ import annotations
 
-import subprocess
-
-
-def get_process_name(pid):
-
-    try:
-
-        result = subprocess.run(
-            [
-                "tasklist",
-                "/FI",
-                f"PID eq {pid}",
-                "/FO",
-                "CSV",
-                "/NH"
-            ],
-            capture_output=True,
-            text=True,
-            timeout=10
-        )
-
-        line = result.stdout.strip()
-
-        if not line or "INFO:" in line:
-            return "Unknown"
-
-        return line.split(",")[0].replace('"', "")
-
-    except Exception:
-
-        return "Unknown"
+from .helpers import (
+    build_error_result,
+    get_netstat_connections,
+    get_process_name_map,
+)
 
 
 def run_scan():
 
     try:
 
-        result = subprocess.run(
-            [
-                "netstat",
-                "-ano"
-            ],
-            capture_output=True,
-            text=True,
-            timeout=15
-        )
+        connections = get_netstat_connections()
+        process_map = get_process_name_map()
 
         sockets = []
 
-        for line in result.stdout.splitlines():
+        for conn in connections:
 
-            line = line.strip()
-
-            if not line.startswith("TCP"):
+            if conn["state"] != "LISTENING":
                 continue
-
-            if "LISTENING" not in line:
-                continue
-
-            parts = line.split()
-
-            if len(parts) < 5:
-                continue
-
-            local = parts[1]
-            pid = parts[4]
-
-            process = get_process_name(pid)
 
             sockets.append({
-
-                "local": local,
-
-                "pid": pid,
-
-                "process": process
-
+                "local": conn["local"],
+                "pid": conn["pid"],
+                "process": process_map.get(conn["pid"], "Unknown"),
             })
 
         total = len(sockets)
@@ -154,22 +102,8 @@ def run_scan():
 
     except Exception as e:
 
-        return {
-
-            "status": "Warning",
-
-            "risk": "Low",
-
-            "details": str(e),
-
-            "recommendation": (
-                "Unable to enumerate active listening sockets."
-            ),
-
-            "detection_method": "netstat -ano + tasklist",
-
-            "confidence": "Low",
-
-            "data": {}
-
-        }
+        return build_error_result(
+            e,
+            "Unable to enumerate active listening sockets.",
+            "netstat -ano + tasklist",
+        )

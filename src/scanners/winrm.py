@@ -1,26 +1,24 @@
-import subprocess
+"""
+WinRM (Windows Remote Management) service check.
+
+BEFORE: spawned PowerShell to run `(Get-Service WinRM).Status`.
+
+AFTER: reads the same information via `psutil.win_service_get()` -- an
+in-process Win32 Service Control Manager call, no subprocess at all.
+"""
+
+from .service_utils import get_service_info
 
 
 def check_winrm():
 
     try:
+        info = get_service_info("WinRM")
 
-        result = subprocess.run(
-            [
-                "powershell",
-                "-NoProfile",
-                "-Command",
-                "(Get-Service WinRM).Status"
-            ],
-            capture_output=True,
-            text=True,
-            timeout=15
-        )
+        if info.error:
+            raise RuntimeError(info.error)
 
-        status = result.stdout.strip().lower()
-
-        if status == "running":
-
+        if info.status == "running":
             return {
                 "status": "Warning",
                 "risk": "Medium",
@@ -30,8 +28,7 @@ def check_winrm():
                 "confidence": "100%"
             }
 
-        elif status == "stopped":
-
+        elif info.status in ("stopped", "not_installed"):
             return {
                 "status": "Passed",
                 "risk": "Low",
@@ -42,18 +39,16 @@ def check_winrm():
             }
 
         else:
-
             return {
                 "status": "Warning",
                 "risk": "Unknown",
-                "details": f"Unexpected WinRM service state: {status}",
+                "details": f"Unexpected WinRM service state: {info.status}",
                 "recommendation": "Verify WinRM configuration manually.",
                 "detection_method": "Windows Service",
                 "confidence": "80%"
             }
 
     except Exception as e:
-
         return {
             "status": "Warning",
             "risk": "Unknown",

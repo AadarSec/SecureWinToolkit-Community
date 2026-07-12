@@ -1,4 +1,4 @@
-import subprocess
+from .powershell_utils import run_ps
 import json
 
 
@@ -21,19 +21,9 @@ def check_windows_update():
             "'[' + ($items -join ',') + ']'"
         )
 
-        result = subprocess.run(
-            [
-                "powershell",
-                "-NoProfile",
-                "-Command",
-                script
-            ],
-            capture_output=True,
-            text=True,
-            timeout=90
-        )
+        result = run_ps(script, timeout=90)
 
-        output = result.stdout.strip()
+        output = result.stdout
 
         if not output:
             output = "[]"

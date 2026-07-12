@@ -1,26 +1,25 @@
-import subprocess
+"""
+Remote Desktop (RDP) status check.
+
+BEFORE: spawned PowerShell just to read one DWORD registry value.
+
+AFTER: reads it directly via `winreg` -- no subprocess.
+"""
+
+import winreg
+
+
+_KEY_PATH = r"SYSTEM\CurrentControlSet\Control\Terminal Server"
+_VALUE_NAME = "fDenyTSConnections"
 
 
 def check_rdp():
 
     try:
+        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, _KEY_PATH) as key:
+            value, _ = winreg.QueryValueEx(key, _VALUE_NAME)
 
-        result = subprocess.run(
-            [
-                "powershell",
-                "-NoProfile",
-                "-Command",
-                "(Get-ItemProperty -Path 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server').fDenyTSConnections"
-            ],
-            capture_output=True,
-            text=True,
-            timeout=15
-        )
-
-        output = result.stdout.strip()
-
-        if output == "1":
-
+        if value == 1:
             return {
                 "status": "Passed",
                 "risk": "Low",
@@ -30,8 +29,7 @@ def check_rdp():
                 "confidence": "100%"
             }
 
-        elif output == "0":
-
+        elif value == 0:
             return {
                 "status": "Warning",
                 "risk": "Medium",
@@ -50,8 +48,17 @@ def check_rdp():
             "confidence": "50%"
         }
 
-    except Exception as e:
+    except FileNotFoundError:
+        return {
+            "status": "Warning",
+            "risk": "Unknown",
+            "details": "Unable to determine Remote Desktop status (registry value not found).",
+            "recommendation": "Verify Remote Desktop settings manually.",
+            "detection_method": "Registry",
+            "confidence": "0%"
+        }
 
+    except Exception as e:
         return {
             "status": "Warning",
             "risk": "Unknown",

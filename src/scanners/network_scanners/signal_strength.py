@@ -8,28 +8,16 @@ Scanner:
 
 from __future__ import annotations
 
-import subprocess
+from .helpers import build_error_result, get_wlan_interface_info
 
 
 def run_scan():
 
     try:
 
-        result = subprocess.run(
-            [
-                "netsh",
-                "wlan",
-                "show",
-                "interfaces"
-            ],
-            capture_output=True,
-            text=True,
-            timeout=10
-        )
+        info = get_wlan_interface_info()
 
-        output = result.stdout
-
-        if "State" not in output:
+        if info is None:
 
             return {
                 "status": "Information",
@@ -42,17 +30,6 @@ def run_scan():
                 "confidence": "High",
                 "data": {}
             }
-
-        info = {}
-
-        for line in output.splitlines():
-
-            if ":" not in line:
-                continue
-
-            key, value = line.split(":", 1)
-
-            info[key.strip()] = value.strip()
 
         signal = info.get("Signal", "Unknown")
         rx_rate = info.get("Receive rate (Mbps)", "Unknown")
@@ -132,22 +109,8 @@ def run_scan():
 
     except Exception as e:
 
-        return {
-
-            "status": "Warning",
-
-            "risk": "Low",
-
-            "details": str(e),
-
-            "recommendation": (
-                "Unable to determine wireless signal quality."
-            ),
-
-            "detection_method": "netsh",
-
-            "confidence": "Low",
-
-            "data": {}
-
-        }
+        return build_error_result(
+            e,
+            "Unable to determine wireless signal quality.",
+            "netsh",
+        )

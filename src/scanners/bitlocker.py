@@ -1,18 +1,12 @@
-import subprocess
-
 from .admin_utils import is_admin
+from .powershell_utils import run_ps, run_cmd
 
 
 def _run_ps(command, timeout=15):
-
-    result = subprocess.run(
-        ["powershell", "-NoProfile", "-Command", command],
-        capture_output=True,
-        text=True,
-        timeout=timeout
-    )
-
-    return result.stdout.strip(), result.stderr.strip(), result.returncode
+    # Kept for call-site compatibility (output, err, code) while delegating
+    # to the shared, CREATE_NO_WINDOW-enabled helper.
+    result = run_ps(command, timeout)
+    return result.stdout, result.stderr, result.returncode
 
 
 def check_bitlocker():
@@ -101,13 +95,14 @@ def check_bitlocker():
     # secondary check rather than the primary source of truth.
 
     try:
-        result = subprocess.run(
-            ["manage-bde", "-status", "%SystemDrive%"],
-            capture_output=True,
-            text=True,
-            timeout=15,
-            shell=True
-        )
+        # Expand %SystemDrive% in Python instead of relying on shell=True.
+        # This avoids spawning an extra cmd.exe layer (shell=True on Windows
+        # means "run via cmd.exe") on top of manage-bde itself, and it lets
+        # us keep the CREATE_NO_WINDOW flag active via run_cmd().
+        import os
+        system_drive = os.environ.get("SystemDrive", "C:")
+
+        result = run_cmd(["manage-bde", "-status", system_drive], timeout=15)
 
         output = result.stdout
 

@@ -1,4 +1,4 @@
-import subprocess
+from .powershell_utils import run_ps
 
 
 def check_windows_defender():
@@ -36,26 +36,14 @@ $result = [PSCustomObject]@{
 $result | ConvertTo-Json -Compress
 """
 
-        result = subprocess.run(
-            [
-                "powershell",
-                "-NoProfile",
-                "-ExecutionPolicy",
-                "Bypass",
-                "-Command",
-                command,
-            ],
-            capture_output=True,
-            text=True,
-            timeout=20,
-        )
+        result = run_ps(command, timeout=20)
 
-        if result.returncode != 0:
+        if not result.ok:
 
             return {
                 "status": "Warning",
                 "risk": "Unknown",
-                "details": result.stderr.strip(),
+                "details": result.stderr,
                 "recommendation": "Verify Microsoft Defender manually.",
                 "detection_method": "Get-MpComputerStatus",
                 "confidence": "0%",

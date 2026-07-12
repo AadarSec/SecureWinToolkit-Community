@@ -1,16 +1,12 @@
-import subprocess
+from .powershell_utils import run_ps
 
 
 def _run_ps(command, timeout=20):
-
-    result = subprocess.run(
-        ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", command],
-        capture_output=True,
-        text=True,
-        timeout=timeout
-    )
-
-    return result.stdout.strip(), result.stderr.strip(), result.returncode
+    # Delegates to the shared, CREATE_NO_WINDOW-enabled helper
+    # (see powershell_utils.py) instead of spawning its own
+    # subprocess directly.
+    result = run_ps(command, timeout)
+    return result.stdout, result.stderr, result.returncode
 
 
 def check_smbv1():

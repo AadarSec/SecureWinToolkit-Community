@@ -8,7 +8,7 @@ Scanner:
 
 from __future__ import annotations
 
-from .helpers import get_public_ip
+from .helpers import build_error_result, get_public_ip
 
 
 def run_scan():
@@ -35,14 +35,8 @@ def run_scan():
             }
         }
 
-    return {
-        "status": "Warning",
-        "risk": "Low",
-        "details": "Unable to retrieve Public IP.",
-        "recommendation": (
-            "Check your internet connectivity."
-        ),
-        "detection_method": "HTTPS Public IP Lookup",
-        "confidence": "Low",
-        "data": {}
-    }
+    return build_error_result(
+        "Unable to retrieve Public IP.",
+        "Check your internet connectivity.",
+        "HTTPS Public IP Lookup",
+    )

@@ -1,23 +1,13 @@
-import subprocess
+from .powershell_utils import run_ps
 
 
 def check_administrator_account():
 
     try:
 
-        result = subprocess.run(
-            [
-                "powershell",
-                "-NoProfile",
-                "-Command",
-                "(Get-LocalUser -Name 'Administrator').Enabled"
-            ],
-            capture_output=True,
-            text=True,
-            timeout=15
-        )
+        result = run_ps("(Get-LocalUser -Name 'Administrator').Enabled")
 
-        enabled = result.stdout.strip().lower()
+        enabled = result.stdout.lower()
 
         if enabled == "false":
 

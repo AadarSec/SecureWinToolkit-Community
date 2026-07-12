@@ -8,8 +8,7 @@ Scanner:
 
 from __future__ import annotations
 
-import subprocess
-import json
+from .helpers import build_error_result, run_powershell
 
 
 # ---------------------------------------------------------------------------
@@ -38,7 +37,9 @@ def run_scan():
         # COLLECTION
         # -------------------------------------------------------------
         # Single PowerShell call for all services instead of one call
-        # per service — faster and more reliable.
+        # per service — faster and more reliable. Uses the shared
+        # run_powershell() helper instead of re-implementing the
+        # subprocess + JSON parsing boilerplate.
         # -------------------------------------------------------------
 
         service_names = ",".join(f'"{name}"' for name in NETWORK_SERVICES)
@@ -64,22 +65,7 @@ $results = foreach ($n in $names) {{
 $results | ConvertTo-Json
 """
 
-        result = subprocess.run(
-            [
-                "powershell",
-                "-NoProfile",
-                "-Command",
-                command
-            ],
-            capture_output=True,
-            text=True,
-            timeout=15
-        )
-
-        if not result.stdout.strip():
-            raise RuntimeError("No output received from PowerShell.")
-
-        raw = json.loads(result.stdout)
+        raw = run_powershell(command, timeout=15)
 
         # PowerShell returns a dict (not a list) when only one object exists.
         if isinstance(raw, dict):
@@ -202,28 +188,12 @@ $results | ConvertTo-Json
 
     except Exception as e:
 
-        return {
-
-            "status": "Warning",
-
-            "risk": "Low",
-
-            "details": str(e),
-
-            "recommendation": (
-                "Unable to enumerate network-related Windows services."
-            ),
-
-            "detection_method": "PowerShell Get-Service",
-
-            "confidence": "Low",
-
-            "possible_attack": [],
-
-            "mitre": [],
-
-            "compliance": {},
-
-            "data": {}
-
-        }
+        result = build_error_result(
+            e,
+            "Unable to enumerate network-related Windows services.",
+            "PowerShell Get-Service",
+        )
+        result["possible_attack"] = []
+        result["mitre"] = []
+        result["compliance"] = {}
+        return result

@@ -1,4 +1,4 @@
-import subprocess
+from .powershell_utils import run_cmd
 
 
 def _get_value(output, key):
@@ -31,12 +31,7 @@ def check_password_policy():
 
     try:
 
-        result = subprocess.run(
-            ["net", "accounts"],
-            capture_output=True,
-            text=True,
-            timeout=20
-        )
+        result = run_cmd(["net", "accounts"], timeout=20)
 
         output = result.stdout
 

@@ -8,65 +8,44 @@ Scanner:
 
 from __future__ import annotations
 
-import subprocess
 import ipaddress
+
+from .helpers import build_error_result, get_netstat_connections
+
+
+IGNORED_IPS = {"0.0.0.0", "127.0.0.1", "::", "::1"}
 
 
 def run_scan():
 
     try:
 
-        result = subprocess.run(
-
-            ["netstat", "-ano"],
-
-            capture_output=True,
-
-            text=True,
-
-            timeout=15
-
-        )
+        connections = get_netstat_connections()
 
         endpoints = set()
 
-        for line in result.stdout.splitlines():
+        for conn in connections:
 
-            line = line.strip()
-
-            if not line.startswith("TCP"):
+            if conn["state"] != "ESTABLISHED":
                 continue
 
-            parts = line.split()
-
-            if len(parts) < 4:
-                continue
-
-            if parts[3] != "ESTABLISHED":
-                continue
-
-            remote = parts[2]
+            remote = conn["remote"]
 
             if ":" not in remote:
                 continue
 
             ip = remote.rsplit(":", 1)[0]
 
-            if ip in (
-                "0.0.0.0",
-                "127.0.0.1",
-                "::",
-                "::1"
-            ):
+            if ip in IGNORED_IPS:
                 continue
 
             endpoints.add(ip)
 
+        endpoint_list = sorted(endpoints)
+
         public_count = 0
         private_count = 0
         loopback_count = 0
-
-        endpoint_list = sorted(endpoints)
 
         details = (
             f"Unique Remote Endpoints : {len(endpoint_list)}\n\n"
@@ -154,22 +133,8 @@ def run_scan():
 
     except Exception as e:
 
-        return {
-
-            "status": "Warning",
-
-            "risk": "Low",
-
-            "details": str(e),
-
-            "recommendation": (
-                "Unable to enumerate remote endpoints."
-            ),
-
-            "detection_method": "netstat -ano",
-
-            "confidence": "Low",
-
-            "data": {}
-
-        }
+        return build_error_result(
+            e,
+            "Unable to enumerate remote endpoints.",
+            "netstat -ano",
+        )
